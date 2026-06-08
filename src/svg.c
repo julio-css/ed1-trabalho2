@@ -15,27 +15,28 @@
 #define SVG_TAMANHO_X 5.0
 
 /*
- * converte_y — translada y somando a margem
- * no SVG o y cresce pra baixo, mas aqui as coordenadas
- * do .geo ja estao no sistema de tela (y=0 no topo)
- * entao so precisamos empurrar pra baixo pela margem
+ * converte_y — translada y somando a margem.
+ * No SVG o y cresce pra baixo. As coordenadas do .geo
+ * ja estao no sistema de tela (y=0 no topo), entao
+ * so precisamos empurrar pela margem.
  */
 static double converte_y(double y, double altura) {
+    (void) altura; /* parametro mantido para compatibilidade futura */
     return y + SVG_MARGEM;
 }
 
 /*
- * converte_x — translada x somando a margem
- * garante que nenhuma forma fique colada na borda esquerda
+ * converte_x — translada x somando a margem.
+ * Garante que nenhuma forma fique colada na borda esquerda.
  */
 static double converte_x(double x) {
     return x + SVG_MARGEM;
 }
 
 /*
- * svg_calcula_dimensoes — percorre a lista e acha o maior x e y
- * usa esses valores pra definir o tamanho do canvas SVG
- * adiciona margem dos dois lados pra nao cortar as bordas
+ * svg_calcula_dimensoes — percorre a lista e acha o maior x e y.
+ * Usa esses valores pra definir o tamanho do canvas SVG.
+ * Adiciona margem dos dois lados pra nao cortar as bordas.
  */
 void svg_calcula_dimensoes(Lista* formas, double* largura, double* altura) {
     double max_x = 0.0, max_y = 0.0;
@@ -45,11 +46,10 @@ void svg_calcula_dimensoes(Lista* formas, double* largura, double* altura) {
         Forma* f = (Forma*) lista_get(formas, i);
         double x = forma_get_x(f);
         double y = forma_get_y(f);
-        
+
         switch (forma_get_tipo(f)) {
 
             case FORMA_CIRCULO: {
-                /* circulo ocupa ate x+r e y+r */
                 double r = forma_get_raio(f);
                 if (x + r > max_x) max_x = x + r;
                 if (y + r > max_y) max_y = y + r;
@@ -57,7 +57,6 @@ void svg_calcula_dimensoes(Lista* formas, double* largura, double* altura) {
             }
 
             case FORMA_RETANGULO: {
-                /* retangulo ocupa ate x+w e y+h */
                 double w = forma_get_largura(f);
                 double h = forma_get_altura(f);
                 if (x + w > max_x) max_x = x + w;
@@ -66,24 +65,21 @@ void svg_calcula_dimensoes(Lista* formas, double* largura, double* altura) {
             }
 
             case FORMA_LINHA: {
-                /* linha tem dois pontos — verifica os dois extremos */
                 double x2 = forma_get_x2(f);
                 double y2 = forma_get_y2(f);
-                if (x  > max_x) max_x = x; 
+                if (x  > max_x) max_x = x;
                 if (x2 > max_x) max_x = x2;
-                if (y  > max_y) max_y = y; 
+                if (y  > max_y) max_y = y;
                 if (y2 > max_y) max_y = y2;
                 break;
             }
 
             case FORMA_TEXTO:
-                /* texto — usa a ancora como referencia de tamanho */
                 if (x > max_x) max_x = x;
                 if (y > max_y) max_y = y;
                 break;
 
             case FORMA_POLIGONO: {
-                /* poligono tem varios vertices — verifica todos */
                 int num_pts = forma_get_num_pontos(f);
                 for (int k = 0; k < num_pts; k++) {
                     double px = forma_get_ponto_x(f, k);
@@ -96,15 +92,13 @@ void svg_calcula_dimensoes(Lista* formas, double* largura, double* altura) {
         }
     }
 
-    /* dimensao final = maior coordenada + margem dos dois lados */
     *largura = max_x + (SVG_MARGEM * 2);
     *altura  = max_y + (SVG_MARGEM * 2);
 }
 
 /*
- * svg_abre — escreve o cabecalho XML do SVG
- * usa viewBox pra o SVG se auto-escalar
- * fixa o tamanho visual em 800x800 independente do conteudo
+ * svg_abre — escreve o cabecalho XML do SVG.
+ * Usa viewBox pra o SVG se auto-escalar.
  */
 void svg_abre(FILE* arq, double largura, double altura) {
     fprintf(arq,
@@ -115,16 +109,16 @@ void svg_abre(FILE* arq, double largura, double altura) {
 }
 
 /*
- * svg_fecha — escreve o fechamento do SVG
+ * svg_fecha — escreve o fechamento do SVG.
  */
 void svg_fecha(FILE* arq) {
     fprintf(arq, "</svg>\n");
 }
 
 /*
- * svg_desenha_forma — desenha uma forma no arquivo SVG
- * cada tipo de forma gera uma tag SVG diferente
- * converte_x e converte_y aplicam a margem nas coordenadas
+ * svg_desenha_forma — desenha uma forma no arquivo SVG.
+ * Cada tipo gera uma tag SVG diferente.
+ * converte_x e converte_y aplicam a margem nas coordenadas.
  */
 void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
     char* corb = forma_get_cor_borda(f);
@@ -132,14 +126,11 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
     double x   = forma_get_x(f);
     double y   = forma_get_y(f);
     int id     = forma_get_id(f);
-
-    /* aplica a margem no x — vale pra todos os tipos */
     double sx  = converte_x(x);
 
     switch (forma_get_tipo(f)) {
 
         case FORMA_CIRCULO: {
-            /* <circle cx cy r style> */
             double cy = converte_y(y, altura);
             fprintf(arq,
                 "  <circle id=\"%d\" cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\""
@@ -149,7 +140,6 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
         }
 
         case FORMA_RETANGULO: {
-            /* <rect x y width height style> */
             double w  = forma_get_largura(f);
             double h  = forma_get_altura(f);
             double ry = converte_y(y, altura);
@@ -162,21 +152,18 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
         }
 
         case FORMA_LINHA: {
-            /* <line x1 y1 x2 y2 style> — converte os dois pontos */
             fprintf(arq,
                 "  <line id=\"%d\" x1=\"%.2f\" y1=\"%.2f\""
                 " x2=\"%.2f\" y2=\"%.2f\""
                 " style=\"stroke:%s;stroke-width:1\"/>\n",
                 id,
-                sx, converte_y(y, altura),
-                converte_x(forma_get_x2(f)), converte_y(forma_get_y2(f), altura),
+                sx,                              converte_y(y, altura),
+                converte_x(forma_get_x2(f)),     converte_y(forma_get_y2(f), altura),
                 corb);
             break;
         }
 
         case FORMA_TEXTO: {
-            /* <text x y text-anchor style>conteudo</text> */
-            /* ancora define o alinhamento: i=start m=middle f=end */
             char* anchor = "start";
             if      (forma_get_ancora(f) == 'm') anchor = "middle";
             else if (forma_get_ancora(f) == 'f') anchor = "end";
@@ -190,8 +177,6 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
         }
 
         case FORMA_POLIGONO: {
-            /* <polygon points="x1,y1 x2,y2 ..."> */
-            /* escreve todos os vertices convertidos */
             fprintf(arq, "  <polygon id=\"%d\" points=\"", id);
             int n_pts = forma_get_num_pontos(f);
             for (int k = 0; k < n_pts; k++) {
@@ -208,20 +193,20 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
 }
 
 /*
- * svg_desenha_lista — desenha todas as formas da lista
- * calcula as dimensoes uma vez e passa pra cada forma
+ * svg_desenha_lista — desenha todas as formas da lista.
  */
 void svg_desenha_lista(FILE* arq, Lista* formas) {
     double l, a;
     svg_calcula_dimensoes(formas, &l, &a);
-    for (int i = 0; i < lista_tamanho(formas); i++)
+    int n = lista_tamanho(formas);
+    for (int i = 0; i < n; i++)
         svg_desenha_forma(arq, (Forma*) lista_get(formas, i), a);
 }
 
 /*
- * svg_gera_arquivo — funcao principal do modulo
- * abre o arquivo, calcula dimensoes, desenha tudo e fecha
- * retorna 1 se gerou com sucesso, 0 se nao conseguiu abrir
+ * svg_gera_arquivo — funcao principal do modulo.
+ * Abre o arquivo, calcula dimensoes, desenha tudo e fecha.
+ * Retorna 1 se gerou com sucesso, 0 se nao conseguiu abrir.
  */
 int svg_gera_arquivo(char* caminho, Lista* formas) {
     FILE* arq = fopen(caminho, "w");
@@ -229,11 +214,71 @@ int svg_gera_arquivo(char* caminho, Lista* formas) {
 
     double l, a;
     svg_calcula_dimensoes(formas, &l, &a);
-
     svg_abre(arq, l, a);
     svg_desenha_lista(arq, formas);
     svg_fecha(arq);
 
     fclose(arq);
     return 1;
+}
+
+/*
+ * svg_desenha_selecao — desenha a regiao de selecao e marca as ancoras.
+ *
+ * Conforme o PDF:
+ *   - Regiao sel: retangulo com borda vermelha pontilhada
+ *   - Ancoras das formas selecionadas: anel vermelho pequeno
+ *
+ * O retangulo e desenhado com stroke-dasharray pra ficar pontilhado.
+ * O anel e um <circle> sem preenchimento com borda vermelha.
+ */
+void svg_desenha_selecao(FILE* arq, double x, double y,
+                         double w, double h,
+                         Lista* selecionadas, double altura) {
+    /* retangulo da regiao — borda vermelha pontilhada, sem preenchimento */
+    fprintf(arq,
+        "  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\""
+        " style=\"fill:none;stroke:red;stroke-width:1.5;"
+        "stroke-dasharray:5,3\"/>\n",
+        converte_x(x), converte_y(y, altura), w, h);
+
+    /* anel vermelho na ancora de cada forma selecionada */
+    int n = lista_tamanho(selecionadas);
+    for (int i = 0; i < n; i++) {
+        Forma* f   = (Forma*) lista_get(selecionadas, i);
+        double ax  = converte_x(forma_get_x(f));
+        double ay  = converte_y(forma_get_y(f), altura);
+
+        fprintf(arq,
+            "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\""
+            " style=\"fill:none;stroke:red;stroke-width:1.5\"/>\n",
+            ax, ay, SVG_RAIO_ANEL);
+    }
+}
+
+/*
+ * svg_desenha_x_remocao — desenha um x vermelho na ancora removida.
+ *
+ * O x e formado por duas linhas diagonais cruzadas.
+ * Usado pelo dels para marcar visualmente as formas que foram removidas.
+ *
+ * ax, ay: coordenadas ja no sistema cartesiano do .geo (sem margem).
+ * A conversao e feita aqui internamente.
+ */
+void svg_desenha_x_remocao(FILE* arq, double ax, double ay, double altura) {
+    double sx = converte_x(ax);
+    double sy = converte_y(ay, altura);
+    double d  = SVG_TAMANHO_X;
+
+    /* diagonal de cima-esquerda para baixo-direita */
+    fprintf(arq,
+        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\""
+        " style=\"stroke:red;stroke-width:2\"/>\n",
+        sx - d, sy - d, sx + d, sy + d);
+
+    /* diagonal de cima-direita para baixo-esquerda */
+    fprintf(arq,
+        "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\""
+        " style=\"stroke:red;stroke-width:2\"/>\n",
+        sx + d, sy - d, sx - d, sy + d);
 }
