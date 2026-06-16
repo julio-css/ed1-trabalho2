@@ -13,7 +13,7 @@
 #include "poligono.h"
 
 /*
- * geo_area — calcula a area de uma forma conforme as regras do trabalho
+ * geo_area — calcula a area conforme as regras do trabalho
  */
 double geo_area(Forma* f) {
     switch (forma_get_tipo(f)) {
@@ -36,7 +36,7 @@ double geo_area(Forma* f) {
 }
 
 /*
- * geo_largura — retorna a largura logica de uma forma
+ * geo_largura — largura logica conforme as regras do trabalho
  */
 double geo_largura(Forma* f) {
     switch (forma_get_tipo(f)) {
@@ -54,7 +54,7 @@ double geo_largura(Forma* f) {
 }
 
 /*
- * geo_altura — retorna a altura logica de uma forma
+ * geo_altura — altura logica conforme as regras do trabalho
  */
 double geo_altura(Forma* f) {
     switch (forma_get_tipo(f)) {
@@ -72,7 +72,7 @@ double geo_altura(Forma* f) {
 }
 
 /*
- * geo_comparar — comparacao para a ABB: chave (y, x, area)
+ * geo_comparar — comparacao padrao para a ABB: chave (y, x, area)
  */
 int geo_comparar(void* e1, void* e2) {
     Forma* f1 = (Forma*) e1;
@@ -91,6 +91,71 @@ int geo_comparar(void* e1, void* e2) {
     if (da >  1e-9) return  1;
 
     return 0;
+}
+
+/*
+ * geo_comparar_area — ordena por area crescente, desempata pela chave padrao
+ */
+int geo_comparar_area(void* e1, void* e2) {
+    Forma* f1 = (Forma*) e1;
+    Forma* f2 = (Forma*) e2;
+
+    double da = geo_area(f1) - geo_area(f2);
+    if (da < -1e-9) return -1;
+    if (da >  1e-9) return  1;
+
+    return geo_comparar(e1, e2);
+}
+
+/*
+ * geo_comparar_largura — ordena por largura crescente, desempata pela chave padrao
+ */
+int geo_comparar_largura(void* e1, void* e2) {
+    Forma* f1 = (Forma*) e1;
+    Forma* f2 = (Forma*) e2;
+
+    double dw = geo_largura(f1) - geo_largura(f2);
+    if (dw < -1e-9) return -1;
+    if (dw >  1e-9) return  1;
+
+    return geo_comparar(e1, e2);
+}
+
+/*
+ * geo_comparar_altura — ordena por altura crescente, desempata pela chave padrao
+ */
+int geo_comparar_altura(void* e1, void* e2) {
+    Forma* f1 = (Forma*) e1;
+    Forma* f2 = (Forma*) e2;
+
+    double dh = geo_altura(f1) - geo_altura(f2);
+    if (dh < -1e-9) return -1;
+    if (dh >  1e-9) return  1;
+
+    return geo_comparar(e1, e2);
+}
+
+/*
+ * geo_comparar_cor — ordena pela cor de preenchimento (alfabetica).
+ * Linhas usam cor da borda conforme especificacao.
+ * Desempata pela chave padrao.
+ */
+int geo_comparar_cor(void* e1, void* e2) {
+    Forma* f1 = (Forma*) e1;
+    Forma* f2 = (Forma*) e2;
+
+    /* linha usa cor da borda; demais formas usam cor de preenchimento */
+    char* c1 = (forma_get_tipo(f1) == FORMA_LINHA)
+               ? forma_get_cor_borda(f1)
+               : forma_get_cor_preench(f1);
+    char* c2 = (forma_get_tipo(f2) == FORMA_LINHA)
+               ? forma_get_cor_borda(f2)
+               : forma_get_cor_preench(f2);
+
+    int cmp = strcmp(c1, c2);
+    if (cmp != 0) return cmp;
+
+    return geo_comparar(e1, e2);
 }
 
 /*
@@ -118,7 +183,7 @@ void geo_processa_arquivo(FILE* arq_geo, Arvore formas) {
 
         } else if (strcmp(cmd, "r") == 0) {
             /* r id x y w h cor_borda cor_preench */
-            int id; double x, y, w, h; char corb[32], corp[32];
+            int id; double x, y , w, h; char corb[32], corp[32];
             fscanf(arq_geo, "%d %lf %lf %lf %lf %31s %31s",
                    &id, &x, &y, &w, &h, corb, corp);
             Forma* f = retangulo_cria(id, x, y, w, h, corb, corp);
@@ -145,7 +210,7 @@ void geo_processa_arquivo(FILE* arq_geo, Arvore formas) {
             if (f) inserirArvore(formas, f);
 
         } else if (strcmp(cmd, "ts") == 0) {
-            /* ts familia peso tamanho — so consome os parametros por enquanto */
+            /* ts familia peso tamanho — consome os parametros por enquanto */
             char familia[32], peso[32], tamanho[32];
             fscanf(arq_geo, "%31s %31s %31s", familia, peso, tamanho);
         }
