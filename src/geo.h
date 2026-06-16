@@ -6,15 +6,15 @@
 #include "forma.h"
 
 /*
- * geo.h — funcoes de suporte geometrico e leitura do .geo
+ * geo.h — suporte geometrico e leitura do .geo
  *
- * Este modulo e responsavel por:
- *   - calcular propriedades geometricas das formas (area, etc)
- *   - fornecer a funcao de comparacao da ABB (chave: y, x, area)
+ * Responsabilidades:
+ *   - calcular propriedades geometricas das formas (area, largura, altura)
+ *   - fornecer comparadores para a ABB e para os algoritmos de ordenacao
  *   - ler o arquivo .geo e popular a arvore
  *
- * Fica separado do main.c porque depende de forma.h,
- * e a arvore e generica — ela nao pode incluir forma.h diretamente.
+ * Separado do main.c porque depende de forma.h —
+ * a arvore e generica e nao pode incluir forma.h diretamente.
  */
 
 /*
@@ -31,7 +31,7 @@ double geo_area(Forma* f);
  * geo_largura — retorna a largura logica de uma forma:
  *   retangulo: w
  *   circulo  : 2 * r
- *   linha    : comprimento horizontal (|x2 - x1|)
+ *   linha    : |x2 - x1|
  *   texto    : 1.0 * numero de caracteres
  *   poligono : 0
  */
@@ -48,14 +48,36 @@ double geo_largura(Forma* f);
 double geo_altura(Forma* f);
 
 /*
- * geo_comparar — funcao de comparacao para a ABB.
+ * geo_comparar — comparacao padrao para a ABB.
  * Chave: y crescente, depois x crescente, depois area crescente.
- * Retorna negativo se f1 vem antes, positivo se vem depois.
- * Usa tolerancia de 1e-9 para comparacao de doubles.
- *
- * Assinatura compativel com FuncaoComparacao de arvore.h.
+ * Compativel com FuncaoComparacao de arvore.h.
  */
 int geo_comparar(void* f1, void* f2);
+
+/*
+ * geo_comparar_area — ordena por area crescente.
+ * Desempate pela chave padrao (y, x, area).
+ */
+int geo_comparar_area(void* f1, void* f2);
+
+/*
+ * geo_comparar_largura — ordena por largura crescente.
+ * Desempate pela chave padrao.
+ */
+int geo_comparar_largura(void* f1, void* f2);
+
+/*
+ * geo_comparar_altura — ordena por altura crescente.
+ * Desempate pela chave padrao.
+ */
+int geo_comparar_altura(void* f1, void* f2);
+
+/*
+ * geo_comparar_cor — ordena pela cor de preenchimento em ordem alfabetica.
+ * Para linhas, usa a cor da borda (conforme especificacao).
+ * Desempate pela chave padrao.
+ */
+int geo_comparar_cor(void* f1, void* f2);
 
 /*
  * geo_get_id — extrai o ID de uma Forma passada como void*.
