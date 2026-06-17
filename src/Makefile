@@ -8,7 +8,7 @@ TST   = ../tst
 UNITY = ../unity
 INC   = -I$(SRC) -I$(UNITY)
 
-OBJS = forma.o   \
+OBJS = forma.o    \
        circulo.o  \
        retangulo.o \
        linha.o    \
@@ -19,6 +19,7 @@ OBJS = forma.o   \
        arvore.o   \
        geo.o      \
        qry.o      \
+       sort.o     \
        svg.o
 
 # --- executavel principal ---
@@ -62,6 +63,9 @@ geo.o: geo.c geo.h
 qry.o: qry.c qry.h geo.h svg.h
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
+sort.o: sort.c sort.h
+	$(CC) -c $(CFLAGS) $(INC) $< -o $@
+
 svg.o: svg.c svg.h
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
@@ -88,6 +92,9 @@ $(TST)/t_geo: $(TST)/t_geo.c geo.c forma.c circulo.c retangulo.c linha.c texto.c
 	$(UNITY)/unity.c geo.c forma.c circulo.c retangulo.c linha.c texto.c arvore.c \
 	$(TST)/t_geo.c -o $(TST)/t_geo -lm
 
+$(TST)/t_sort: $(TST)/t_sort.c sort.c $(UNITY)/unity.c
+	$(CC) $(CFLAGS) $(INC) $(UNITY)/unity.c sort.c $(TST)/t_sort.c -o $(TST)/t_sort
+
 # --- alvos de execucao dos testes ---
 
 tst_fila:     $(TST)/t_fila     ; ./$(TST)/t_fila
@@ -96,8 +103,9 @@ tst_forma:    $(TST)/t_forma    ; ./$(TST)/t_forma
 tst_poligono: $(TST)/t_poligono ; ./$(TST)/t_poligono
 tst_arvore:   $(TST)/t_arvore   ; ./$(TST)/t_arvore
 tst_geo:      $(TST)/t_geo      ; ./$(TST)/t_geo
+tst_sort:     $(TST)/t_sort     ; ./$(TST)/t_sort
 
-tstall: tst_fila tst_lista tst_forma tst_poligono tst_arvore tst_geo
+tstall: tst_fila tst_lista tst_forma tst_poligono tst_arvore tst_geo tst_sort
 
 # --- valgrind ---
 
@@ -110,6 +118,7 @@ vtest: tstall
 	$(VG) ./$(TST)/t_poligono
 	$(VG) ./$(TST)/t_arvore
 	$(VG) ./$(TST)/t_geo
+	$(VG) ./$(TST)/t_sort
 
 vted: ted
 	$(VG) ./$(PROJ_NAME) -e . -f teste.geo -o .
@@ -119,7 +128,7 @@ vted: ted
 clean:
 	rm -f *.o $(PROJ_NAME)
 	rm -f $(TST)/t_fila $(TST)/t_lista $(TST)/t_forma \
-	      $(TST)/t_poligono $(TST)/t_arvore $(TST)/t_geo
+	      $(TST)/t_poligono $(TST)/t_arvore $(TST)/t_geo $(TST)/t_sort
 
 .PHONY: ted tstall tst_fila tst_lista tst_forma tst_poligono \
-        tst_arvore tst_geo clean vtest vted
+        tst_arvore tst_geo tst_sort clean vtest vted
