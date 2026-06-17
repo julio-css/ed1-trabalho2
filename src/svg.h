@@ -78,4 +78,13 @@ void svg_desenha_selecao(FILE* arq, double x, double y,
  */
 void svg_desenha_x_remocao(FILE* arq, double ax, double ay, double altura);
 
+/*
+ * svg_desenha_quadrado_selecao
+ * desenha um pequeno quadrado vermelho na ancora de uma forma selecionada
+ * pelo find — conforme o PDF: "marcar a ancora dos k menores com um
+ * pequeno quadrado vermelho"
+ * pre-condicao: arq != NULL
+ */
+void svg_desenha_quadrado_selecao(FILE* arq, double ax, double ay, double altura);
+
 #endif

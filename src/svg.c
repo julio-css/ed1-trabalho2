@@ -282,3 +282,19 @@ void svg_desenha_x_remocao(FILE* arq, double ax, double ay, double altura) {
         " style=\"stroke:red;stroke-width:2\"/>\n",
         sx + d, sy - d, sx - d, sy + d);
 }
+
+/*
+ * svg_desenha_quadrado_selecao — quadrado vermelho na ancora do find.
+ * Conforme o PDF: "marcar a ancora dos k menores com um pequeno quadrado vermelho".
+ * ax, ay: coordenadas no sistema do .geo (sem margem).
+ */
+void svg_desenha_quadrado_selecao(FILE* arq, double ax, double ay, double altura) {
+    double sx = ax + SVG_MARGEM;
+    double sy = ay + SVG_MARGEM;
+    double d  = 4.0; /* metade do lado do quadrado */
+    (void) altura;
+    fprintf(arq,
+        "  <rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%.2f\""
+        " style=\"fill:red;stroke:red\"/>\n",
+        sx - d, sy - d, d*2, d*2);
+}
