@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "arvore.h"
 #include "forma.h"
@@ -8,7 +10,7 @@
 #include "geo.h"
 #include "qry.h"
 
-#define MAX_PATH      512
+#define MAX_PATH 512
 
 int main(int argc, char* argv[]) {
     char dir_entrada[MAX_PATH] = ".";
@@ -32,6 +34,9 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "uso: ted [-e path] -f arq.geo -o dir [-q arq.qry]\n");
         return 1;
     }
+
+    /* cria o diretorio de saida se nao existir */
+    mkdir(dir_saida, 0755);
 
     /* abre o .geo e popula a arvore */
     char caminho_geo[MAX_PATH * 2];
