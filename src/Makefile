@@ -60,7 +60,7 @@ arvore.o: arvore.c arvore.h
 geo.o: geo.c geo.h
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
-qry.o: qry.c qry.h geo.h svg.h
+qry.o: qry.c qry.h geo.h svg.h sort.h
 	$(CC) -c $(CFLAGS) $(INC) $< -o $@
 
 sort.o: sort.c sort.h
@@ -95,6 +95,13 @@ $(TST)/t_geo: $(TST)/t_geo.c geo.c forma.c circulo.c retangulo.c linha.c texto.c
 $(TST)/t_sort: $(TST)/t_sort.c sort.c $(UNITY)/unity.c
 	$(CC) $(CFLAGS) $(INC) $(UNITY)/unity.c sort.c $(TST)/t_sort.c -o $(TST)/t_sort
 
+$(TST)/t_qry: $(TST)/t_qry.c qry.c geo.c forma.c circulo.c retangulo.c linha.c texto.c \
+              poligono.c fila.c arvore.c svg.c lista.c sort.c $(UNITY)/unity.c
+	$(CC) $(CFLAGS) $(INC) -DUNITY_INCLUDE_DOUBLE \
+	$(UNITY)/unity.c qry.c geo.c forma.c circulo.c retangulo.c linha.c texto.c \
+	poligono.c fila.c arvore.c svg.c lista.c sort.c \
+	$(TST)/t_qry.c -o $(TST)/t_qry -lm
+
 # --- alvos de execucao dos testes ---
 
 tst_fila:     $(TST)/t_fila     ; ./$(TST)/t_fila
@@ -104,8 +111,9 @@ tst_poligono: $(TST)/t_poligono ; ./$(TST)/t_poligono
 tst_arvore:   $(TST)/t_arvore   ; ./$(TST)/t_arvore
 tst_geo:      $(TST)/t_geo      ; ./$(TST)/t_geo
 tst_sort:     $(TST)/t_sort     ; ./$(TST)/t_sort
+tst_qry:      $(TST)/t_qry      ; ./$(TST)/t_qry
 
-tstall: tst_fila tst_lista tst_forma tst_poligono tst_arvore tst_geo tst_sort
+tstall: tst_fila tst_lista tst_forma tst_poligono tst_arvore tst_geo tst_sort tst_qry
 
 # --- valgrind ---
 
@@ -119,6 +127,7 @@ vtest: tstall
 	$(VG) ./$(TST)/t_arvore
 	$(VG) ./$(TST)/t_geo
 	$(VG) ./$(TST)/t_sort
+	$(VG) ./$(TST)/t_qry
 
 vted: ted
 	$(VG) ./$(PROJ_NAME) -e . -f teste.geo -o .
@@ -128,7 +137,8 @@ vted: ted
 clean:
 	rm -f *.o $(PROJ_NAME)
 	rm -f $(TST)/t_fila $(TST)/t_lista $(TST)/t_forma \
-	      $(TST)/t_poligono $(TST)/t_arvore $(TST)/t_geo $(TST)/t_sort
+	      $(TST)/t_poligono $(TST)/t_arvore $(TST)/t_geo \
+	      $(TST)/t_sort $(TST)/t_qry
 
 .PHONY: ted tstall tst_fila tst_lista tst_forma tst_poligono \
-        tst_arvore tst_geo tst_sort clean vtest vted
+        tst_arvore tst_geo tst_sort tst_qry clean vtest vted
