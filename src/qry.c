@@ -30,12 +30,16 @@ typedef struct
  * base    : caminho base sem extensao (ex: "saida/arq-qry")
  * contador: proximo numero de frame, comeca em 1
  * formas  : arvore com todas as formas (fundo de cada frame)
+ * dest_x, dest_y, dw : posicao e espacamento de destino do find,
+ * usados para posicionar o vetor sendo ordenado
+ * em cada frame da animacao
  */
 typedef struct
 {
     char base[MAX_PATH * 4];
     int contador;
     Arvore formas;
+    double dest_x, dest_y, dw;
 } CtxFrames;
 
 /* =============================================================
@@ -85,7 +89,20 @@ static int predicado_na_regiao(void *elemento, void *ctx)
 
 /*
  * snapshot_frame — gera um SVG numerado a cada passo do algoritmo.
- * Destaca os dois elementos sendo comparados/trocados com circulo azul.
+ *
+ * Diferente de desenhar a arvore com as posicoes originais (que nao
+ * mudam durante o sort), este snapshot desenha as formas do VETOR
+ * já posicionadas na fileira de destino (dest_x, dest_y, dw), na
+ * ordem atual do vetor naquele instante. Assim cada frame mostra a
+ * troca de posicao entre elementos, como uma animacao real de
+ * reorganizacao — analogo ao exemplo do professor (bolinha se
+ * deslocando sobre um cenario fixo).
+ *
+ * As formas que nao fazem parte do vetor (nao foram selecionadas)
+ * continuam aparecendo no fundo, nas posicoes originais da arvore.
+ *
+ * Os dois elementos comparados/trocados no passo atual (i e j)
+ * ganham um anel azul de destaque.
  */
 static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
 {
@@ -94,6 +111,8 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
     char caminho[MAX_PATH * 5];
     snprintf(caminho, sizeof(caminho), "%s%06d.svg", c->base, c->contador++);
 
+    /* fundo: todas as formas da arvore (inclui as do vetor, nas
+     * posicoes antigas — serao sobrepostas pelo desenho do vetor) */
     Lista *todas = lista_criar();
     emOrdemArvore(c->formas, cb_coleta_lista, todas);
 
@@ -109,18 +128,32 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
     svg_abre(arq, l, a);
     svg_desenha_lista(arq, todas);
 
+    /* desenha o vetor na fileira de destino, na ordem atual */
+    double pos_x = c->dest_x;
     for (int idx = 0; idx < n; idx++)
     {
-        if (idx == i || (j >= 0 && idx == j))
+        Forma *f = (Forma *)vetor[idx];
+
+        /* clona temporariamente so para desenhar na posicao da fileira
+         * sem alterar a forma real (que so deve mudar ao final do find) */
+        Forma *temp = forma_clona(f);
+        if (temp)
         {
-            Forma *f = (Forma *)vetor[idx];
-            double sx = forma_get_x(f) + 20.0;
-            double sy = forma_get_y(f) + 20.0;
-            fprintf(arq,
-                    "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"5\""
-                    " style=\"fill:none;stroke:blue;stroke-width:2\"/>\n",
-                    sx, sy);
+            forma_set_x(temp, pos_x);
+            forma_set_y(temp, c->dest_y);
+            svg_desenha_forma(arq, temp, a);
+
+            /* anel azul nos dois elementos do passo atual */
+            if (idx == i || (j >= 0 && idx == j))
+            {
+                fprintf(arq,
+                        "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"8\""
+                        " style=\"fill:none;stroke:blue;stroke-width:2\"/>\n",
+                        pos_x + 20.0, c->dest_y + 20.0);
+            }
+            forma_destroi(temp);
         }
+        pos_x += c->dw;
     }
 
     svg_fecha(arq);
@@ -385,7 +418,7 @@ static void cmd_dels(Arvore formas, Lista **selecionadas,
 }
 
 static void cmd_mcs(FILE *arq_qry, Arvore formas,
-                    Lista *selecionadas, FILE *arq_txt)
+                    Lista *selecionadas, FILE *arq_txt, const char *base_svg)
 {
     double dx, dy;
     char corb[32], corp[32];
@@ -403,6 +436,24 @@ static void cmd_mcs(FILE *arq_qry, Arvore formas,
     }
     if (arq_txt)
         fprintf(arq_txt, "[*] mcs: transladadas %d formas\n", n);
+
+    /* --- LÓGICA DE GERAR FRAMES --- */
+    if (base_svg)
+    {
+        static int contador_mcs = 1;
+        char prefixo[MAX_PATH];
+        char caminho[MAX_PATH * 2];
+        
+        strncpy(prefixo, base_svg, sizeof(prefixo) - 1);
+        prefixo[sizeof(prefixo) - 1] = '\0';
+        
+        char *ponto = strrchr(prefixo, '.');
+        if (ponto) *ponto = '\0';
+        
+        snprintf(caminho, sizeof(caminho), "%s_frame_%03d.svg", prefixo, contador_mcs++);
+        
+        qry_svg_de_arvore(caminho, formas);
+    }
 }
 
 static void cmd_mc(FILE *arq_qry, Lista *selecionadas, FILE *arq_txt)
@@ -494,7 +545,8 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         return;
     }
 
-    /* prepara o contexto dos frames */
+    /* prepara o contexto dos frames — inclui a posicao de destino
+     * para que cada frame desenhe o vetor ja na fileira final */
     CtxFrames ctx_frames;
     if (base_svg)
     {
@@ -506,9 +558,17 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     }
     ctx_frames.contador = 1;
     ctx_frames.formas = formas;
+    ctx_frames.dest_x = dest_x;
+    ctx_frames.dest_y = dest_y;
+    ctx_frames.dw = dw;
+
+    /* gera o frame 0 (estado inicial, antes de qualquer troca) para
+     * a animacao comecar mostrando a fileira desordenada */
+    FuncaoSnapshot snap = base_svg ? snapshot_frame : NULL;
+    if (snap)
+        snap(vetor, n_sel, -1, -1, &ctx_frames);
 
     /* executa o algoritmo */
-    FuncaoSnapshot snap = base_svg ? snapshot_frame : NULL;
     if (strcmp(alg, "bs") == 0)
         sort_bubble(vetor, n_sel, cmp, snap, &ctx_frames);
     else if (strcmp(alg, "ss") == 0)
@@ -531,7 +591,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         fprintf(arq_txt, "[*] %s %d %s %s %.1f %.1f %.1f\n",
                 eh_findrm ? "findrm" : "find",
                 k, alg, crit, dest_x, dest_y, dw);
-        for (int i = 0; i < n_sel; i++)
+        for (int i = 0; i < k; i++)
         {
             Forma *f = (Forma *)vetor[i];
             fprintf(arq_txt, "   %d: id=%d tipo=%d", i + 1,
@@ -585,9 +645,15 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     if (base_svg)
         svg_de_arvore_com_quadrados(base_svg, formas, vetor, k);
 
-    free(vetor);
     lista_destruir(*selecionadas);
     *selecionadas = lista_criar();
+
+    if (!eh_findrm)
+    {
+        for (int i = 0; i < k; i++)
+            lista_inserir_fim(*selecionadas, vetor[i]);
+    }
+    free(vetor);
 }
 
 /* =============================================================
@@ -616,7 +682,7 @@ void qry_processa_arquivo(FILE *arq_qry, Arvore formas,
         else if (strcmp(cmd, "dels") == 0)
             cmd_dels(formas, &selecionadas, arq_txt, base_svg);
         else if (strcmp(cmd, "mcs") == 0)
-            cmd_mcs(arq_qry, formas, selecionadas, arq_txt);
+            cmd_mcs(arq_qry, formas, selecionadas, arq_txt, base_svg);
         else if (strcmp(cmd, "mc") == 0)
             cmd_mc(arq_qry, selecionadas, arq_txt);
         else if (strcmp(cmd, "cm") == 0)

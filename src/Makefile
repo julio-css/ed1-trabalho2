@@ -1,6 +1,6 @@
 PROJ_NAME = ted
 CC        = gcc
-CFLAGS    = -std=c99 -fstack-protector-all -ggdb -O0 -Wall
+CFLAGS = -std=c99 -fstack-protector-all -ggdb -O0 -Wall
 LDFLAGS   = -O0 -lm
 
 SRC   = .
