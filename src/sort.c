@@ -20,12 +20,12 @@ void sort_bubble(void **vetor, int n,
         {
             if (cmp(vetor[j], vetor[j + 1]) > 0)
             {
+                if (snapshot)
+                    snapshot(vetor, n, j, j + 1, ctx); // Snapshot antes da troca
                 void *tmp = vetor[j];
                 vetor[j] = vetor[j + 1];
                 vetor[j + 1] = tmp;
                 trocou = 1;
-                if (snapshot)
-                    snapshot(vetor, n, j, j + 1, ctx);
             }
         }
         if (!trocou)
@@ -54,11 +54,11 @@ void sort_selection(void **vetor, int n,
         }
         if (min != i)
         {
+            if (snapshot)
+                snapshot(vetor, n, i, min, ctx); // Snapshot antes da troca
             void *tmp = vetor[i];
             vetor[i] = vetor[min];
             vetor[min] = tmp;
-            if (snapshot)
-                snapshot(vetor, n, i, min, ctx);
         }
     }
 }
@@ -80,9 +80,9 @@ void sort_insertion(void **vetor, int n,
         int j = i - 1;
         while (j >= 0 && cmp(vetor[j], chave) > 0)
         {
-            vetor[j + 1] = vetor[j];
             if (snapshot)
-                snapshot(vetor, n, j, j + 1, ctx);
+                snapshot(vetor, n, j, j + 1, ctx); // Snapshot antes de deslocar
+            vetor[j + 1] = vetor[j];
             j--;
         }
         vetor[j + 1] = chave;
@@ -112,9 +112,9 @@ void sort_shell(void **vetor, int n,
             int j = i;
             while (j >= gap && cmp(vetor[j - gap], chave) > 0)
             {
-                vetor[j] = vetor[j - gap];
                 if (snapshot)
-                    snapshot(vetor, n, j, j - gap, ctx);
+                    snapshot(vetor, n, j, j - gap, ctx); // Snapshot antes de mover
+                vetor[j] = vetor[j - gap];
                 j -= gap;
             }
             vetor[j] = chave;
@@ -142,18 +142,18 @@ static int particiona(void **vetor, int lo, int hi, int n,
         if (cmp(vetor[j], pivo) <= 0)
         {
             i++;
+            if (snapshot)
+                snapshot(vetor, n, i, j, ctx);
             void *tmp = vetor[i];
             vetor[i] = vetor[j];
             vetor[j] = tmp;
-            if (snapshot)
-                snapshot(vetor, n, i, j, ctx);
         }
     }
+    if (snapshot)
+        snapshot(vetor, n, i + 1, hi, ctx);
     void *tmp = vetor[i + 1];
     vetor[i + 1] = vetor[hi];
     vetor[hi] = tmp;
-    if (snapshot)
-        snapshot(vetor, n, i + 1, hi, ctx);
     return i + 1;
 }
 
