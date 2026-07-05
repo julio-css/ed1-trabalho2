@@ -100,15 +100,13 @@ static int predicado_na_regiao(void *elemento, void *ctx)
  * snapshot_frame – Gera um arquivo SVG numerado para cada passo do
  * algoritmo de ordenação.
  *
- * Ao contrário da renderização estática da árvore, este snapshot
- * desenha as formas do vetor (selecionadas) já posicionadas na fileira
- * de destino (dest_x, dest_y, dw), refletindo a ordem corrente do
- * vetor. Isso produz uma animação progressiva das trocas, similar ao
- * exemplo das bolinhas se deslocando sobre o cenário fixo.
+ * Este snapshot desenha todas as formas da árvore em suas posições
+ * originais, exceto aquelas que estão sendo ordenadas (vetor), que
+ * são desenhadas exclusivamente na fileira de destino. O retângulo
+ * de seleção é desenhado como referência espacial.
  *
- * As formas não pertencentes ao vetor permanecem em suas posições
- * originais. Os elementos comparados/trocados no passo atual (índices
- * i e j) são destacados com um círculo azul.
+ * Os elementos comparados/trocados no passo atual (índices i e j) são
+ * destacados com um círculo azul.
  */
 static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
 {
@@ -125,21 +123,46 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
 
     svg_abre(arq, l, a);
 
-    /* Desenha o retângulo vermelho pontilhado da seleção (conforme
-     * especificação do trabalho). */
+    /* Desenha o retângulo vermelho pontilhado da seleção */
     Lista *vazia = lista_criar();
     svg_desenha_selecao(arq, c->regiao.x, c->regiao.y, c->regiao.w, c->regiao.h, vazia, a);
     lista_destruir(vazia);
 
-    /* Posiciona os elementos do vetor na fileira de destino, na ordem
-     * atual do vetor. Para cada forma, armazena temporariamente suas
-     * coordenadas originais, desenha-a na posição de destino e restaura
-     * os valores originais. */
+    /* --- 1. Desenha o fundo (formas NÃO selecionadas) --- */
+    /* Coleta todas as formas da árvore em uma lista */
+    Lista *todas = lista_criar();
+    emOrdemArvore(c->formas, cb_coleta_lista, todas);
+
+    /* Para cada forma, verifica se está no vetor de selecionadas */
+    int tam_todas = lista_tamanho(todas);
+    for (int idx = 0; idx < tam_todas; idx++)
+    {
+        Forma *f = (Forma *)lista_get(todas, idx);
+        int esta_no_vetor = 0;
+        /* Verifica se f está presente no vetor (busca linear) */
+        for (int k = 0; k < n; k++)
+        {
+            if (vetor[k] == f)
+            {
+                esta_no_vetor = 1;
+                break;
+            }
+        }
+        /* Se NÃO estiver no vetor, desenha na posição original */
+        if (!esta_no_vetor)
+        {
+            svg_desenha_forma(arq, f, a);
+        }
+    }
+    lista_destruir(todas);
+
+    /* --- 2. Desenha as formas selecionadas na fileira de destino --- */
     double pos_x = c->dest_x;
     for (int idx = 0; idx < n; idx++)
     {
         Forma *f = (Forma *)vetor[idx];
 
+        /* Guarda coordenadas originais para restaurar depois */
         double ox = forma_get_x(f);
         double oy = forma_get_y(f);
         double ox2 = 0, oy2 = 0;
@@ -151,6 +174,7 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
             oy2 = forma_get_y2(f);
         }
 
+        /* Posiciona temporariamente na fileira de destino */
         forma_set_x(f, pos_x);
         forma_set_y(f, c->dest_y);
         if (e_linha)
@@ -161,7 +185,7 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
 
         svg_desenha_forma(arq, f, a);
 
-        /* Destaque azul para os elementos envolvidos na comparação ou troca. */
+        /* Destaque azul para os elementos comparados/trocados */
         if (idx == i || (j >= 0 && idx == j))
         {
             fprintf(arq,
@@ -170,6 +194,7 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
                     pos_x + 20.0, c->dest_y + 20.0);
         }
 
+        /* Restaura posição original */
         forma_set_x(f, ox);
         forma_set_y(f, oy);
         if (e_linha)
