@@ -104,7 +104,7 @@ void svg_abre(FILE* arq, double largura, double altura) {
     fprintf(arq,
         "<svg xmlns=\"http://www.w3.org/2000/svg\""
         " viewBox=\"0 0 %.2f %.2f\""
-        " width=\"1200\" height=\"1200\">\n",
+        " width=\"100%%\" height=\"100%%\">\n",
         largura, altura);
 }
 
