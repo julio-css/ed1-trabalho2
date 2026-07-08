@@ -14,13 +14,23 @@
  * mantendo o svg.h desacoplado da estrutura de dados.
  *
  * Comandos tratados:
- *   inp  — insere ancora de uma figura no poligono
- *   rmp  — remove ancora mais antiga do poligono
- *   clp  — limpa todas as coordenadas do poligono
- *   pol  — gera as linhas do poligono e insere na arvore
- *   sel  — seleciona figuras dentro de uma regiao
- *   dels — remove as figuras selecionadas
- *   mcs  — move e recolore as figuras selecionadas
+ *   inp    — insere ancora de uma figura no poligono
+ *   rmp    — remove ancora mais antiga do poligono
+ *   clp    — limpa todas as coordenadas do poligono
+ *   pol    — gera as linhas do poligono e insere na arvore
+ *   sel    — seleciona as figuras inteiramente dentro de uma regiao
+ *            (descarta a selecao anterior)
+ *   dels   — remove as figuras selecionadas
+ *   mcs    — move e recolore as figuras selecionadas
+ *   mc     — recolore as figuras selecionadas (sem mover)
+ *   cm     — clona as figuras dentro de uma regiao, move os clones por
+ *            (dx,dy) e os torna a selecao atual (descarta a anterior)
+ *   find   — ordena as figuras selecionadas (algoritmo/criterio a
+ *            escolha), posiciona os k menores numa fileira a partir de
+ *            (x,y) espacados por dw, e gera a animacao (.svg por frame)
+ *            do processo de ordenacao quando base_svg != NULL
+ *   findrm — identico ao find, porem remove da arvore as figuras de
+ *            rank superior a k
  */
 
 /* numero maximo de poligonos simultaneos conforme o trabalho */
