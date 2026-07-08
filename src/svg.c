@@ -192,15 +192,39 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura) {
     }
 }
 
+
+/*
+ * svg_desenha_lista_altura — desenha todas as formas reutilizando
+ * uma altura já calculada. Evita recalcular as dimensões quando
+ * elas já são conhecidas pelo chamador.
+ */
+void svg_desenha_lista_altura(FILE* arq, Lista* formas, double altura) {
+    int n = lista_tamanho(formas);
+    for (int i = 0; i < n; i++)
+        svg_desenha_forma(arq, (Forma*)lista_get(formas, i), altura);
+}
+
 /*
  * svg_desenha_lista — desenha todas as formas da lista.
  */
 void svg_desenha_lista(FILE* arq, Lista* formas) {
     double l, a;
     svg_calcula_dimensoes(formas, &l, &a);
-    int n = lista_tamanho(formas);
-    for (int i = 0; i < n; i++)
-        svg_desenha_forma(arq, (Forma*) lista_get(formas, i), a);
+    svg_desenha_lista_altura(arq, formas, a);
+}
+
+
+/*
+ * svg_abre_com_viewbox — escreve o cabecalho XML do SVG
+ * com viewBox personalizada para focar em uma área específica.
+ */
+void svg_abre_com_viewbox(FILE* arq, double largura, double altura,
+                          double view_x, double view_y) {
+    fprintf(arq,
+        "<svg xmlns=\"http://www.w3.org/2000/svg\""
+        " viewBox=\"%.2f %.2f %.2f %.2f\""
+        " width=\"100%%\" height=\"100%%\">\n",
+        view_x, view_y, largura, altura);
 }
 
 /*
@@ -212,10 +236,13 @@ int svg_gera_arquivo(char* caminho, Lista* formas) {
     FILE* arq = fopen(caminho, "w");
     if (!arq) return 0;
 
+    static char buffer[1024 * 1024];
+    setvbuf(arq, buffer, _IOFBF, sizeof(buffer));
+
     double l, a;
     svg_calcula_dimensoes(formas, &l, &a);
     svg_abre(arq, l, a);
-    svg_desenha_lista(arq, formas);
+    svg_desenha_lista_altura(arq, formas, a);
     svg_fecha(arq);
 
     fclose(arq);
