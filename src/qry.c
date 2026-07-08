@@ -14,6 +14,7 @@
 #include "sort.h"
 
 #define MAX_PATH 512
+#define MAX_POLIGONOS 10
 
 /* =============================================================
  * TIPOS AUXILIARES INTERNOS
@@ -34,7 +35,7 @@ typedef struct
  * da animação, incluindo o diretório base, contador, árvore de formas,
  * posição de destino, largura do degrau, região de seleção e dimensões
  * da tela.
- * 
+ *
  * ALTERADO: adicionados os campos fundo_svg e fundo_tam para cache do fundo.
  */
 typedef struct
@@ -43,11 +44,11 @@ typedef struct
     int contador;
     Arvore formas;
     double dest_x, dest_y, dw;
-    RegiaoSel regiao;          /* retângulo de seleção para desenho */
+    RegiaoSel regiao; /* retângulo de seleção para desenho */
     double largura_tela;
     double altura_tela;
-    char *fundo_svg;           /* Buffer de memória com o fundo estático do SVG */
-    size_t fundo_tam;          /* Tamanho do buffer do fundo */
+    char *fundo_svg;  /* Buffer de memória com o fundo estático do SVG */
+    size_t fundo_tam; /* Tamanho do buffer do fundo */
 } CtxFrames;
 
 /* Variável estática para armazenar a última região de seleção,
@@ -69,6 +70,67 @@ static void cb_coleta_lista(void *elemento, void *aux)
 static void cb_coleta_sel(void *elemento, void *aux)
 {
     lista_inserir_fim((Lista *)aux, elemento);
+}
+
+/*
+ * calcula_regiao_arvore – retorna um retângulo que cobre todas as formas da árvore.
+ * Usado quando não há uma região de seleção definida (ultima_regiao vazia).
+ */
+static RegiaoSel calcula_regiao_arvore(Arvore formas)
+{
+    RegiaoSel reg = {0, 0, 0, 0};
+    Lista *lista = lista_criar();
+    emOrdemArvore(formas, cb_coleta_lista, lista);
+    int n = lista_tamanho(lista);
+    if (n == 0) {
+        lista_destruir(lista);
+        return reg;
+    }
+
+    double min_x = 1e9, min_y = 1e9, max_x = -1e9, max_y = -1e9;
+    for (int i = 0; i < n; i++) {
+        Forma *f = (Forma *)lista_get(lista, i);
+        double x = forma_get_x(f), y = forma_get_y(f);
+        double x2 = x, y2 = y;
+        switch (forma_get_tipo(f)) {
+            case FORMA_CIRCULO:
+                x2 = x + forma_get_raio(f);
+                y2 = y + forma_get_raio(f);
+                break;
+            case FORMA_RETANGULO:
+                x2 = x + forma_get_largura(f);
+                y2 = y + forma_get_altura(f);
+                break;
+            case FORMA_LINHA:
+                x2 = forma_get_x2(f);
+                y2 = forma_get_y2(f);
+                break;
+            case FORMA_POLIGONO: {
+                int np = forma_get_num_pontos(f);
+                for (int k = 0; k < np; k++) {
+                    double px = forma_get_ponto_x(f, k);
+                    double py = forma_get_ponto_y(f, k);
+                    if (px < min_x) min_x = px;
+                    if (py < min_y) min_y = py;
+                    if (px > max_x) max_x = px;
+                    if (py > max_y) max_y = py;
+                }
+                continue;
+            }
+            default:
+                break;
+        }
+        if (x < min_x) min_x = x;
+        if (y < min_y) min_y = y;
+        if (x2 > max_x) max_x = x2;
+        if (y2 > max_y) max_y = y2;
+    }
+    lista_destruir(lista);
+    reg.x = min_x - 2.0;
+    reg.y = min_y - 2.0;
+    reg.w = max_x - min_x + 4.0;
+    reg.h = max_y - min_y + 4.0;
+    return reg;
 }
 
 /*
@@ -361,10 +423,14 @@ static void svg_de_arvore_com_quadrados(const char *caminho, Arvore formas,
             double x2l = forma_get_x2(f), y2l = forma_get_y2(f);
             x2 = (x2l > x) ? x2l : x;
             y2 = (y2l > y) ? y2l : y;
-            if (x < min_x) min_x = x;
-            if (y < min_y) min_y = y;
-            if (x2l > max_x) max_x = x2l;
-            if (y2l > max_y) max_y = y2l;
+            if (x < min_x)
+                min_x = x;
+            if (y < min_y)
+                min_y = y;
+            if (x2l > max_x)
+                max_x = x2l;
+            if (y2l > max_y)
+                max_y = y2l;
             continue;
         }
         case FORMA_POLIGONO:
@@ -374,20 +440,28 @@ static void svg_de_arvore_com_quadrados(const char *caminho, Arvore formas,
             {
                 double px = forma_get_ponto_x(f, k2);
                 double py = forma_get_ponto_y(f, k2);
-                if (px < min_x) min_x = px;
-                if (py < min_y) min_y = py;
-                if (px > max_x) max_x = px;
-                if (py > max_y) max_y = py;
+                if (px < min_x)
+                    min_x = px;
+                if (py < min_y)
+                    min_y = py;
+                if (px > max_x)
+                    max_x = px;
+                if (py > max_y)
+                    max_y = py;
             }
             continue;
         }
         default:
             break;
         }
-        if (x < min_x) min_x = x;
-        if (y < min_y) min_y = y;
-        if (x2 > max_x) max_x = x2;
-        if (y2 > max_y) max_y = y2;
+        if (x < min_x)
+            min_x = x;
+        if (y < min_y)
+            min_y = y;
+        if (x2 > max_x)
+            max_x = x2;
+        if (y2 > max_y)
+            max_y = y2;
     }
 
     /* Inclui a área da fileira de destino */
@@ -396,10 +470,14 @@ static void svg_de_arvore_com_quadrados(const char *caminho, Arvore formas,
         double largura_fileira = k * dw;
         double altura_fileira = 60.0; /* altura arbitrária para o retângulo */
         double fx = dest_x, fy = dest_y - 30.0;
-        if (fx < min_x) min_x = fx;
-        if (fy < min_y) min_y = fy;
-        if (fx + largura_fileira > max_x) max_x = fx + largura_fileira;
-        if (fy + altura_fileira > max_y) max_y = fy + altura_fileira;
+        if (fx < min_x)
+            min_x = fx;
+        if (fy < min_y)
+            min_y = fy;
+        if (fx + largura_fileira > max_x)
+            max_x = fx + largura_fileira;
+        if (fy + altura_fileira > max_y)
+            max_y = fy + altura_fileira;
     }
 
     double margem = 1.0;
@@ -458,7 +536,7 @@ static void move_forma(Forma *f, double dx, double dy)
 }
 
 /* =============================================================
- * IMPLEMENTAÇÃO DOS COMANDOS DA QRV
+ * IMPLEMENTAÇÃO DOS COMANDOS DA QRY
  * ============================================================= */
 
 /* Comando 'inp': insere um ponto (âncora) em um polígono identificado
@@ -558,7 +636,7 @@ static void cmd_sel(FILE *arq_qry, Arvore formas,
                     FILE *arq_txt, const char *base_svg)
 {
     RegiaoSel reg;
-    
+
     if (fscanf(arq_qry, "%lf %lf %lf %lf", &reg.x, &reg.y, &reg.w, &reg.h) != 4)
         return;
 
@@ -707,7 +785,7 @@ static void cmd_cm(FILE *arq_qry, Arvore formas,
  * na fileira de destino e, opcionalmente, remove os demais.
  * Gera animação (frames SVG) se um nome base for fornecido.
  * Parâmetro eh_findrm: 0 para 'find', 1 para 'findrm'.
- * 
+ *
  * ALTERADO: adicionados ajuste de dw, pré‑cálculo do fundo estático,
  * ajuste de dimensões da tela e geração do snapshot inicial.
  */
@@ -767,7 +845,8 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         strncpy(ctx_frames.base, base_svg, MAX_PATH * 4 - 1);
         ctx_frames.base[MAX_PATH * 4 - 1] = '\0';
         char *ponto = strrchr(ctx_frames.base, '.');
-        if (ponto) *ponto = '\0';
+        if (ponto)
+            *ponto = '\0';
 
         /* Coleta todas as formas para calcular dimensões */
         Lista *todas = lista_criar();
@@ -781,13 +860,17 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
             {
                 Forma *f = (Forma *)vetor[idx];
                 double lf = geo_largura(f), af = geo_altura(f);
-                if (lf > maior_largura_forma) maior_largura_forma = lf;
-                if (af > maior_altura_forma) maior_altura_forma = af;
+                if (lf > maior_largura_forma)
+                    maior_largura_forma = lf;
+                if (af > maior_altura_forma)
+                    maior_altura_forma = af;
             }
             double fim_x = dest_x + (n_sel * dw) + maior_largura_forma + 20.0;
             double fim_y = dest_y + maior_altura_forma + 20.0;
-            if (fim_x > ctx_frames.largura_tela) ctx_frames.largura_tela = fim_x;
-            if (fim_y > ctx_frames.altura_tela) ctx_frames.altura_tela = fim_y;
+            if (fim_x > ctx_frames.largura_tela)
+                ctx_frames.largura_tela = fim_x;
+            if (fim_y > ctx_frames.altura_tela)
+                ctx_frames.altura_tela = fim_y;
         }
 
         /* Gera o fundo estático (formas não selecionadas) em memória */
@@ -817,7 +900,13 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         lista_destruir(todas);
     }
 
-    ctx_frames.regiao = ultima_regiao;
+    /* Se não houver região de seleção definida, usa a região de toda a árvore */
+    if (ultima_regiao.w == 0.0 && ultima_regiao.h == 0.0) {
+        ctx_frames.regiao = calcula_regiao_arvore(formas);
+    } else {
+        ctx_frames.regiao = ultima_regiao;
+    }
+
     ctx_frames.contador = 1;
     ctx_frames.formas = formas;
     ctx_frames.dest_x = dest_x;
@@ -924,7 +1013,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
 }
 
 /* =============================================================
- * PROCESSADOR PRINCIPAL DA QRV
+ * PROCESSADOR PRINCIPAL DA QRY
  * ============================================================= */
 
 /*
