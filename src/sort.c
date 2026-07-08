@@ -4,11 +4,8 @@
 
 /* =============================================================
  * BUBBLE SORT
- *
- * Percorre o vetor repetidamente comparando pares adjacentes
- * e trocando quando necessario. Para cedo se nao houver trocas.
+ * Snapshot a cada troca – já é razoável.
  * ============================================================= */
-
 void sort_bubble(void **vetor, int n,
                  FuncaoComparacaoSort cmp,
                  FuncaoSnapshot snapshot, void *ctx)
@@ -21,7 +18,7 @@ void sort_bubble(void **vetor, int n,
             if (cmp(vetor[j], vetor[j + 1]) > 0)
             {
                 if (snapshot)
-                    snapshot(vetor, n, j, j + 1, ctx); // Snapshot antes da troca
+                    snapshot(vetor, n, j, j + 1, ctx);
                 void *tmp = vetor[j];
                 vetor[j] = vetor[j + 1];
                 vetor[j + 1] = tmp;
@@ -35,11 +32,8 @@ void sort_bubble(void **vetor, int n,
 
 /* =============================================================
  * SELECTION SORT
- *
- * A cada iteracao encontra o menor do trecho nao ordenado
- * e coloca na posicao correta.
+ * Snapshot a cada seleção (quando há troca) – aceitável.
  * ============================================================= */
-
 void sort_selection(void **vetor, int n,
                     FuncaoComparacaoSort cmp,
                     FuncaoSnapshot snapshot, void *ctx)
@@ -55,7 +49,7 @@ void sort_selection(void **vetor, int n,
         if (min != i)
         {
             if (snapshot)
-                snapshot(vetor, n, i, min, ctx); // Snapshot antes da troca
+                snapshot(vetor, n, i, min, ctx);
             void *tmp = vetor[i];
             vetor[i] = vetor[min];
             vetor[min] = tmp;
@@ -65,11 +59,9 @@ void sort_selection(void **vetor, int n,
 
 /* =============================================================
  * INSERTION SORT
- *
- * Mantem subvetor ordenado a esquerda. Insere cada elemento
- * na posicao correta deslocando os maiores para a direita.
+ * Original: snapshot a cada deslocamento.
+ * Otimizado: snapshot APÓS inserir a chave (um por iteração).
  * ============================================================= */
-
 void sort_insertion(void **vetor, int n,
                     FuncaoComparacaoSort cmp,
                     FuncaoSnapshot snapshot, void *ctx)
@@ -80,22 +72,21 @@ void sort_insertion(void **vetor, int n,
         int j = i - 1;
         while (j >= 0 && cmp(vetor[j], chave) > 0)
         {
-            if (snapshot)
-                snapshot(vetor, n, j, j + 1, ctx); // Snapshot antes de deslocar
             vetor[j + 1] = vetor[j];
             j--;
         }
         vetor[j + 1] = chave;
+        /* Snapshot após a inserção, mostrando a nova posição da chave */
+        if (snapshot)
+            snapshot(vetor, n, j + 1, -1, ctx);
     }
 }
 
 /* =============================================================
  * SHELL SORT
- *
- * Insertion Sort generalizado com gaps decrescentes.
- * Usa sequencia de Knuth: 1, 4, 13, 40, ...
+ * Original: snapshot a cada deslocamento.
+ * Otimizado: snapshot após cada inserção (um por iteração do gap).
  * ============================================================= */
-
 void sort_shell(void **vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void *ctx)
@@ -112,12 +103,13 @@ void sort_shell(void **vetor, int n,
             int j = i;
             while (j >= gap && cmp(vetor[j - gap], chave) > 0)
             {
-                if (snapshot)
-                    snapshot(vetor, n, j, j - gap, ctx); // Snapshot antes de mover
                 vetor[j] = vetor[j - gap];
                 j -= gap;
             }
             vetor[j] = chave;
+            /* Snapshot após cada inserção */
+            if (snapshot)
+                snapshot(vetor, n, j, -1, ctx);
         }
         gap /= 3;
     }
@@ -125,11 +117,8 @@ void sort_shell(void **vetor, int n,
 
 /* =============================================================
  * QUICK SORT
- *
- * Divide em torno de um pivo (ultimo elemento) e ordena
- * recursivamente. Particionamento in-place.
+ * Snapshot a cada troca na partição – já é razoável.
  * ============================================================= */
-
 static int particiona(void **vetor, int lo, int hi, int n,
                       FuncaoComparacaoSort cmp,
                       FuncaoSnapshot snapshot, void *ctx)
@@ -180,11 +169,9 @@ void sort_quick(void **vetor, int n,
 
 /* =============================================================
  * MERGE SORT
- *
- * Divide ao meio recursivamente e intercala os subvetores.
- * Usa buffer auxiliar temporario para o merge.
+ * OTIMIZAÇÃO CRÍTICA: snapshot UMA VEZ por intercalação (merge),
+ * e não para cada elemento copiado.
  * ============================================================= */
-
 static void merge(void **vetor, int lo, int mid, int hi, int n,
                   FuncaoComparacaoSort cmp,
                   FuncaoSnapshot snapshot, void *ctx)
@@ -207,12 +194,14 @@ static void merge(void **vetor, int lo, int mid, int hi, int n,
     while (j <= hi)
         tmp[k++] = vetor[j++];
 
+    /* Copia de volta para o vetor original */
     for (int m = 0; m < tam; m++)
-    {
         vetor[lo + m] = tmp[m];
-        if (snapshot)
-            snapshot(vetor, n, lo + m, -1, ctx);
-    }
+
+    /* ÚNICO snapshot por merge – destaca o intervalo intercalado */
+    if (snapshot)
+        snapshot(vetor, n, lo, hi, ctx);
+
     free(tmp);
 }
 

@@ -640,6 +640,31 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         emOrdemArvore(formas, cb_coleta_lista, todas);
         svg_calcula_dimensoes(todas, &ctx_frames.largura_tela, &ctx_frames.altura_tela);
         lista_destruir(todas);
+
+        /* BUGFIX: svg_calcula_dimensoes so enxerga a posicao ORIGINAL das
+         * formas no .geo. Durante a animacao, snapshot_frame desenha as
+         * formas selecionadas temporariamente na fileira de destino
+         * (dest_x, dest_y, dw), que pode ficar fora desse canvas -- ex.:
+         * 4reg-1500.geo tem max_y ~1284 e um dos .qry de teste manda
+         * posicionar a fileira em y=1291.04. Sem este ajuste, a fileira
+         * fica cortada nos frames da animacao e no video final gerado
+         * pelo ffmpeg a partir deles. Expande a tela para cobrir a
+         * fileira inteira (todas as n_sel formas, ja que o snapshot
+         * desenha TODAS as selecionadas na fileira, nao so as k finais). */
+        {
+            double maior_largura_forma = 0.0, maior_altura_forma = 0.0;
+            for (int idx = 0; idx < n_sel; idx++)
+            {
+                Forma *f = (Forma *)vetor[idx];
+                double lf = geo_largura(f), af = geo_altura(f);
+                if (lf > maior_largura_forma) maior_largura_forma = lf;
+                if (af > maior_altura_forma) maior_altura_forma = af;
+            }
+            double fim_x = dest_x + (n_sel * dw) + maior_largura_forma + 20.0;
+            double fim_y = dest_y + maior_altura_forma + 20.0;
+            if (fim_x > ctx_frames.largura_tela) ctx_frames.largura_tela = fim_x;
+            if (fim_y > ctx_frames.altura_tela) ctx_frames.altura_tela = fim_y;
+        }
     }
 
     ctx_frames.regiao = ultima_regiao;
