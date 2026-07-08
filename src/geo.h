@@ -5,94 +5,195 @@
 #include "arvore.h"
 #include "forma.h"
 
-/*
- * geo.h — suporte geometrico e leitura do .geo
+/**
+ * @defgroup geo Geo
+ * @brief Módulo de suporte geométrico e leitura do arquivo .geo.
  *
  * Responsabilidades:
- *   - calcular propriedades geometricas das formas (area, largura, altura)
- *   - fornecer comparadores para a ABB e para os algoritmos de ordenacao
- *   - ler o arquivo .geo e popular a arvore
+ *   - Calcular propriedades geométricas das formas (área, largura, altura)
+ *   - Fornecer comparadores para a ABB e para os algoritmos de ordenação
+ *   - Ler o arquivo .geo e popular a árvore
  *
  * Separado do main.c porque depende de forma.h —
- * a arvore e generica e nao pode incluir forma.h diretamente.
+ * a árvore é genérica e não pode incluir forma.h diretamente.
+ *
+ * @see forma.h, arvore.h
+ * @{
  */
 
-/*
- * geo_area — calcula a area de uma forma conforme as regras do trabalho:
- *   circulo  : pi * r^2
- *   retangulo: w * h
- *   linha    : 1.5 * comprimento
- *   texto    : 10.0 * numero de caracteres
- *   poligono : 0
+/* ============================================================
+ * CÁLCULOS GEOMÉTRICOS
+ * ============================================================ */
+
+/**
+ * @brief Calcula a área de uma forma conforme as regras do trabalho.
+ *
+ * Regras para cada tipo:
+ * - Círculo   : π * r²
+ * - Retângulo : w * h
+ * - Linha     : 1.5 * comprimento
+ * - Texto     : 10.0 * número de caracteres
+ * - Polígono  : 0
+ *
+ * @param f Ponteiro para a forma.
+ *
+ * @return Área calculada (double).
+ *
+ * @pre f != NULL.
  */
 double geo_area(Forma* f);
 
-/*
- * geo_largura — retorna a largura logica de uma forma:
- *   retangulo: w
- *   circulo  : 2 * r
- *   linha    : |x2 - x1|
- *   texto    : 1.0 * numero de caracteres
- *   poligono : 0
+/**
+ * @brief Retorna a largura lógica de uma forma.
+ *
+ * Regras para cada tipo:
+ * - Retângulo : w
+ * - Círculo   : 2 * r
+ * - Linha     : |x2 - x1|
+ * - Texto     : 1.0 * número de caracteres
+ * - Polígono  : 0
+ *
+ * @param f Ponteiro para a forma.
+ *
+ * @return Largura calculada (double).
+ *
+ * @pre f != NULL.
  */
 double geo_largura(Forma* f);
 
-/*
- * geo_altura — retorna a altura logica de uma forma:
- *   retangulo: h
- *   circulo  : 2 * r
- *   linha    : 1.5 (conforme especificacao)
- *   texto    : 10.0 (conforme especificacao)
- *   poligono : 0
+/**
+ * @brief Retorna a altura lógica de uma forma.
+ *
+ * Regras para cada tipo:
+ * - Retângulo : h
+ * - Círculo   : 2 * r
+ * - Linha     : 1.5 (conforme especificação)
+ * - Texto     : 10.0 (conforme especificação)
+ * - Polígono  : 0
+ *
+ * @param f Ponteiro para a forma.
+ *
+ * @return Altura calculada (double).
+ *
+ * @pre f != NULL.
  */
 double geo_altura(Forma* f);
 
-/*
- * geo_comparar — comparacao padrao para a ABB.
- * Chave: y crescente, depois x crescente, depois area crescente.
- * Compativel com FuncaoComparacao de arvore.h.
+/* ============================================================
+ * COMPARADORES
+ * ============================================================ */
+
+/**
+ * @brief Comparação padrão para a ABB (ordem default).
+ *
+ * Chave: y crescente, depois x crescente, depois área crescente.
+ *
+ * @param f1 Primeira forma (void*).
+ * @param f2 Segunda forma (void*).
+ *
+ * @return <0 se f1 < f2, 0 se iguais, >0 se f1 > f2.
+ *
+ * @pre f1 != NULL, f2 != NULL.
+ * @see geo_comparar_area, geo_comparar_largura, geo_comparar_altura, geo_comparar_cor
  */
 int geo_comparar(void* f1, void* f2);
 
-/*
- * geo_comparar_area — ordena por area crescente.
- * Desempate pela chave padrao (y, x, area).
+/**
+ * @brief Comparador para ordenação por área crescente.
+ *
+ * Desempate pela chave padrão (y, x, área).
+ *
+ * @param f1 Primeira forma (void*).
+ * @param f2 Segunda forma (void*).
+ *
+ * @return <0 se f1 < f2, 0 se iguais, >0 se f1 > f2.
+ *
+ * @pre f1 != NULL, f2 != NULL.
  */
 int geo_comparar_area(void* f1, void* f2);
 
-/*
- * geo_comparar_largura — ordena por largura crescente.
- * Desempate pela chave padrao.
+/**
+ * @brief Comparador para ordenação por largura crescente.
+ *
+ * Desempate pela chave padrão (y, x, área).
+ *
+ * @param f1 Primeira forma (void*).
+ * @param f2 Segunda forma (void*).
+ *
+ * @return <0 se f1 < f2, 0 se iguais, >0 se f1 > f2.
+ *
+ * @pre f1 != NULL, f2 != NULL.
  */
 int geo_comparar_largura(void* f1, void* f2);
 
-/*
- * geo_comparar_altura — ordena por altura crescente.
- * Desempate pela chave padrao.
+/**
+ * @brief Comparador para ordenação por altura crescente.
+ *
+ * Desempate pela chave padrão (y, x, área).
+ *
+ * @param f1 Primeira forma (void*).
+ * @param f2 Segunda forma (void*).
+ *
+ * @return <0 se f1 < f2, 0 se iguais, >0 se f1 > f2.
+ *
+ * @pre f1 != NULL, f2 != NULL.
  */
 int geo_comparar_altura(void* f1, void* f2);
 
-/*
- * geo_comparar_cor — ordena pela cor de preenchimento em ordem alfabetica.
- * Para linhas, usa a cor da borda (conforme especificacao).
- * Desempate pela chave padrao.
+/**
+ * @brief Comparador para ordenação por cor de preenchimento.
+ *
+ * Ordena pela cor de preenchimento em ordem alfabética.
+ * Para linhas, usa a cor da borda (conforme especificação).
+ * Desempate pela chave padrão (y, x, área).
+ *
+ * @param f1 Primeira forma (void*).
+ * @param f2 Segunda forma (void*).
+ *
+ * @return <0 se f1 < f2, 0 se iguais, >0 se f1 > f2.
+ *
+ * @pre f1 != NULL, f2 != NULL.
  */
 int geo_comparar_cor(void* f1, void* f2);
 
-/*
- * geo_get_id — extrai o ID de uma Forma passada como void*.
+/* ============================================================
+ * UTILITÁRIOS
+ * ============================================================ */
+
+/**
+ * @brief Extrai o ID de uma Forma passada como void*.
+ *
  * Usada como callback em buscarPorIdArvore para manter
- * a arvore desacoplada do modulo Forma.
+ * a árvore desacoplada do módulo Forma.
+ *
+ * @param elemento Ponteiro para uma Forma (void*).
+ *
+ * @return ID da forma (int).
+ *
+ * @pre elemento != NULL.
+ * @see arvore.h
  */
 int geo_get_id(void* elemento);
 
-/*
- * geo_processa_arquivo — le o .geo linha por linha e insere
- * cada forma na arvore usando geo_comparar como chave.
+/* ============================================================
+ * LEITURA DO ARQUIVO .geo
+ * ============================================================ */
+
+/**
+ * @brief Lê o arquivo .geo linha por linha e insere cada forma na árvore.
  *
- * pre-condicao: arq_geo != NULL, formas != NULL
- * pos-condicao: todas as formas do arquivo estao na arvore
+ * Usa geo_comparar como chave para a árvore.
+ * Suporta os comandos: r (retângulo), c (círculo), l (linha), t (texto),
+ * ts (estilo de texto), f (fonte), e comentários (#).
+ *
+ * @param arq_geo  Ponteiro para o arquivo .geo aberto para leitura.
+ * @param formas   Ponteiro para a árvore onde as formas serão inseridas.
+ *
+ * @pre arq_geo != NULL, formas != NULL.
+ * @post Todas as formas válidas do arquivo estão na árvore.
  */
 void geo_processa_arquivo(FILE* arq_geo, Arvore formas);
 
-#endif
+/** @} */ /* end of geo group */
+
+#endif /* GEO_H */

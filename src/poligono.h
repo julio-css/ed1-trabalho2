@@ -1,80 +1,145 @@
 #ifndef POLIGONO_H
 #define POLIGONO_H
 
-/*
- * tipo abstrato Poligono
+/**
+ * @defgroup poligono Poligono
+ * @brief Módulo para gerenciamento de polígonos (pontos de âncora).
  *
- * um poligono e uma sequencia de pontos (ancora de figuras)
- * armazenados em ordem de insercao numa fila circular estatica.
- * os pontos sao usados para gerar linhas de borda e preenchimento
- * pelo comando pol do arquivo .qry
+ * Um polígono é uma sequência de pontos (âncora de figuras) armazenados
+ * em ordem de inserção numa fila circular estática. Os pontos são usados
+ * para gerar linhas de borda e preenchimento pelo comando 'pol' do arquivo .qry.
  *
- * a struct e definida somente em poligono.c
+ * @see fila.h
+ * @ingroup qry
+ * @{
  */
+
+/* Estrutura opaca do polígono (definida apenas no arquivo .c). */
 typedef struct Poligono Poligono;
 
-/*
- * pol_cria
- * pos-condicao: retorna poligono vazio, ou NULL se falhar
+/* ============================================================
+ * CONSTRUTOR E DESTRUIDOR
+ * ============================================================ */
+
+/**
+ * @brief Cria um polígono vazio.
+ *
+ * @return Ponteiro para o novo polígono, ou NULL em caso de falha.
+ *
+ * @post Retorna um polígono vazio pronto para uso.
  */
 Poligono* pol_cria();
 
-/*
- * pol_destroi
- * pos-condicao: libera toda memoria do poligono
+/**
+ * @brief Libera toda a memória alocada para o polígono.
+ *
+ * @param p Ponteiro para o polígono a ser destruído.
+ *
+ * @pre p != NULL.
+ * @post A memória do polígono é liberada.
  */
 void pol_destroi(Poligono* p);
 
-/*
- * pol_insere
- * insere coordenada (x,y) da figura id no poligono
- * pre-condicao: p != NULL
- * pos-condicao: retorna 1 se inseriu, 0 se fila cheia
+/* ============================================================
+ * OPERAÇÕES DE INSERÇÃO E REMOÇÃO
+ * ============================================================ */
+
+/**
+ * @brief Insere uma coordenada no polígono.
+ *
+ * @param p Ponteiro para o polígono.
+ * @param x Coordenada X do ponto.
+ * @param y Coordenada Y do ponto.
+ * @param id Identificador da forma associada.
+ *
+ * @return 1 em caso de sucesso, 0 se a fila estiver cheia.
+ *
+ * @pre p != NULL.
+ * @post O ponto é adicionado ao final do polígono (FIFO).
  */
 int pol_insere(Poligono* p, double x, double y, int id);
 
-/*
- * pol_remove
- * remove a coordenada mais antiga (FIFO)
- * pre-condicao: p != NULL
- * pos-condicao: preenche ox, oy, oid com os dados removidos
- *               retorna 1 se removeu, 0 se vazio
+/**
+ * @brief Remove a coordenada mais antiga do polígono (FIFO).
+ *
+ * @param p   Ponteiro para o polígono.
+ * @param ox  Ponteiro para armazenar a coordenada X removida.
+ * @param oy  Ponteiro para armazenar a coordenada Y removida.
+ * @param oid Ponteiro para armazenar o ID removido.
+ *
+ * @return 1 em caso de sucesso, 0 se o polígono estiver vazio.
+ *
+ * @pre p != NULL.
+ * @post O ponto mais antigo é removido e os dados são retornados.
  */
 int pol_remove(Poligono* p, double* ox, double* oy, int* oid);
 
-/*
- * pol_limpa
- * remove todas as coordenadas do poligono
- * pre-condicao: p != NULL
- * pos-condicao: poligono fica vazio
+/**
+ * @brief Remove todas as coordenadas do polígono.
+ *
+ * @param p Ponteiro para o polígono.
+ *
+ * @pre p != NULL.
+ * @post O polígono fica vazio.
  */
 void pol_limpa(Poligono* p);
 
-/*
- * pol_tamanho
- * pos-condicao: retorna quantos pontos tem no poligono
+/* ============================================================
+ * CONSULTAS DE ESTADO
+ * ============================================================ */
+
+/**
+ * @brief Retorna a quantidade de pontos no polígono.
+ *
+ * @param p Ponteiro para o polígono.
+ *
+ * @return Número de pontos (int).
+ *
+ * @pre p != NULL.
  */
 int pol_tamanho(Poligono* p);
 
-/*
- * pol_vazio
- * pos-condicao: retorna 1 se vazio, 0 caso contrario
+/**
+ * @brief Verifica se o polígono está vazio.
+ *
+ * @param p Ponteiro para o polígono.
+ *
+ * @return 1 (verdadeiro) se vazio, 0 (falso) caso contrário.
+ *
+ * @pre p != NULL.
  */
 int pol_vazio(Poligono* p);
 
-/*
- * pol_cheio
- * pos-condicao: retorna 1 se cheio, 0 caso contrario
+/**
+ * @brief Verifica se o polígono atingiu a capacidade máxima.
+ *
+ * @param p Ponteiro para o polígono.
+ *
+ * @return 1 (verdadeiro) se cheio, 0 (falso) caso contrário.
+ *
+ * @pre p != NULL.
  */
 int pol_cheio(Poligono* p);
 
-/*
- * pol_get
- * acessa ponto pelo indice sem remover (0 = mais antigo)
- * pre-condicao: p != NULL, idx >= 0
- * pos-condicao: preenche ox, oy, oid
- *               retorna 1 se indice valido, 0 caso contrario
+/* ============================================================
+ * ACESSO A PONTOS
+ * ============================================================ */
+
+/**
+ * @brief Acessa um ponto pelo índice sem removê-lo.
+ *
+ * @param p   Ponteiro para o polígono.
+ * @param idx Índice do ponto (0 = mais antigo).
+ * @param ox  Ponteiro para armazenar a coordenada X.
+ * @param oy  Ponteiro para armazenar a coordenada Y.
+ * @param oid Ponteiro para armazenar o ID.
+ *
+ * @return 1 se o índice é válido, 0 caso contrário.
+ *
+ * @pre p != NULL, idx >= 0.
  */
 int pol_get(Poligono* p, int idx, double* ox, double* oy, int* oid);
 
-#endif
+/** @} */ /* end of poligono group */
+
+#endif /* POLIGONO_H */

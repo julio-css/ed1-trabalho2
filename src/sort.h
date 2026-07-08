@@ -1,112 +1,168 @@
 #ifndef SORT_H
 #define SORT_H
 
-/*
- * sort.h — algoritmos de ordenacao com geracao de frames SVG
+/**
+ * @defgroup sort Sort
+ * @brief Algoritmos de ordenação com geração de frames SVG (snapshots).
  *
  * Cada algoritmo opera sobre um vetor de ponteiros void* e aceita:
- *   - uma funcao de comparacao (mesma assinatura de FuncaoComparacao)
- *   - um callback de snapshot chamado a cada iteracao relevante
+ *   - uma função de comparação (mesma assinatura de FuncaoComparacao)
+ *   - um callback de snapshot chamado a cada iteração relevante
  *
- * O callback e o mecanismo que desacopla os algoritmos da geracao de SVG:
- * quem chama a ordenacao decide o que fazer a cada passo — pode gerar
- * um arquivo SVG, imprimir no terminal, ou nao fazer nada (NULL).
+ * O callback é o mecanismo que desacopla os algoritmos da geração de SVG:
+ * quem chama a ordenação decide o que fazer a cada passo — pode gerar
+ * um arquivo SVG, imprimir no terminal, ou não fazer nada (NULL).
  *
- * Conforme o trabalho, os algoritmos implementados sao:
- *   ss — Selection Sort
- *   bs — Bubble Sort
- *   is — Insertion Sort
- *   shs — Shell Sort
- *   qs — Quick Sort
- *   ms — Merge Sort
+ * @see qry.h, svg.h
+ * @{
  */
 
-/*
- * FuncaoComparacaoSort — compara dois elementos do vetor.
- * Retorna negativo se a < b, zero se iguais, positivo se a > b.
+/* ============================================================
+ * TIPOS
+ * ============================================================ */
+
+/**
+ * @brief Função de comparação entre dois elementos do vetor.
+ *
+ * @param a Primeiro elemento (void*).
+ * @param b Segundo elemento (void*).
+ *
+ * @return Negativo se a < b, zero se iguais, positivo se a > b.
+ *
+ * @pre a != NULL, b != NULL.
  */
 typedef int (*FuncaoComparacaoSort)(void* a, void* b);
 
-/*
- * FuncaoSnapshot — chamada a cada iteracao relevante do algoritmo.
+/**
+ * @brief Função de snapshot chamada a cada iteração relevante do algoritmo.
  *
- * vetor : estado atual do vetor de ponteiros
- * n     : tamanho do vetor
- * i, j  : indices sendo comparados ou trocados neste passo
- *          (-1 se nao aplicavel neste tipo de passo)
- * ctx   : contexto livre passado pelo chamador (ex: struct com caminho
- *         base do SVG e contador de frames)
+ * @param vetor Estado atual do vetor de ponteiros.
+ * @param n     Tamanho do vetor.
+ * @param i     Índice sendo comparado/trocado (ou -1 se não aplicável).
+ * @param j     Índice sendo comparado/trocado (ou -1 se não aplicável).
+ * @param ctx   Contexto livre passado pelo chamador (ex: struct CtxFrames).
  *
- * pre-condicao: vetor != NULL, n > 0
+ * @pre vetor != NULL, n > 0.
  */
 typedef void (*FuncaoSnapshot)(void** vetor, int n, int i, int j, void* ctx);
 
-/*
- * sort_bubble — Bubble Sort.
- * A cada troca, chama snapshot(vetor, n, i, i+1, ctx).
+/* ============================================================
+ * ALGORITMOS DE ORDENAÇÃO
+ * ============================================================ */
+
+/**
+ * @brief Bubble Sort.
  *
- * pre-condicao: vetor != NULL, n >= 0, cmp != NULL
- * pos-condicao: vetor ordenado em ordem crescente segundo cmp
+ * A cada troca, chama snapshot(vetor, n, j, j+1, ctx).
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ *
+ * @pre vetor != NULL, n >= 0, cmp != NULL.
+ * @post vetor ordenado em ordem crescente segundo cmp.
  */
 void sort_bubble(void** vetor, int n,
                  FuncaoComparacaoSort cmp,
                  FuncaoSnapshot snapshot, void* ctx);
 
-/*
- * sort_selection — Selection Sort.
- * A cada selecao do minimo e troca, chama snapshot(vetor, n, i, min_idx, ctx).
+/**
+ * @brief Selection Sort.
  *
- * pre-condicao: vetor != NULL, n >= 0, cmp != NULL
- * pos-condicao: vetor ordenado em ordem crescente segundo cmp
+ * A cada seleção do mínimo e troca, chama snapshot(vetor, n, i, min_idx, ctx).
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ *
+ * @pre vetor != NULL, n >= 0, cmp != NULL.
+ * @post vetor ordenado em ordem crescente segundo cmp.
  */
 void sort_selection(void** vetor, int n,
                     FuncaoComparacaoSort cmp,
                     FuncaoSnapshot snapshot, void* ctx);
 
-/*
- * sort_insertion — Insertion Sort.
+/**
+ * @brief Insertion Sort.
+ *
  * A cada deslocamento de elemento, chama snapshot(vetor, n, j, j+1, ctx).
  *
- * pre-condicao: vetor != NULL, n >= 0, cmp != NULL
- * pos-condicao: vetor ordenado em ordem crescente segundo cmp
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ *
+ * @pre vetor != NULL, n >= 0, cmp != NULL.
+ * @post vetor ordenado em ordem crescente segundo cmp.
  */
 void sort_insertion(void** vetor, int n,
                     FuncaoComparacaoSort cmp,
                     FuncaoSnapshot snapshot, void* ctx);
 
-/*
- * sort_shell — Shell Sort.
- * Usa a sequencia de gaps de Knuth (1, 4, 13, 40, ...).
+/**
+ * @brief Shell Sort.
+ *
+ * Usa a sequência de gaps de Knuth (1, 4, 13, 40, ...).
  * A cada movimento de elemento, chama snapshot(vetor, n, j, j+gap, ctx).
  *
- * pre-condicao: vetor != NULL, n >= 0, cmp != NULL
- * pos-condicao: vetor ordenado em ordem crescente segundo cmp
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ *
+ * @pre vetor != NULL, n >= 0, cmp != NULL.
+ * @post vetor ordenado em ordem crescente segundo cmp.
  */
 void sort_shell(void** vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void* ctx);
 
-/*
- * sort_quick — Quick Sort.
- * Usa o ultimo elemento como pivo.
- * A cada troca durante o particioamento, chama snapshot(vetor, n, i, j, ctx).
+/**
+ * @brief Quick Sort.
  *
- * pre-condicao: vetor != NULL, n >= 0, cmp != NULL
- * pos-condicao: vetor ordenado em ordem crescente segundo cmp
+ * Usa o último elemento como pivô.
+ * A cada troca durante o particionamento, chama snapshot(vetor, n, i, j, ctx).
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ *
+ * @pre vetor != NULL, n >= 0, cmp != NULL.
+ * @post vetor ordenado em ordem crescente segundo cmp.
  */
 void sort_quick(void** vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void* ctx);
 
-/*
- * sort_merge — Merge Sort.
- * A cada elemento copiado de volta no merge, chama snapshot(vetor, n, i, -1, ctx).
+/**
+ * @brief Merge Sort.
  *
- * pre-condicao: vetor != NULL, n >= 0, cmp != NULL
- * pos-condicao: vetor ordenado em ordem crescente segundo cmp
+ * A cada intercalação (merge), chama snapshot(vetor, n, lo, hi, ctx).
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ *
+ * @pre vetor != NULL, n >= 0, cmp != NULL.
+ * @post vetor ordenado em ordem crescente segundo cmp.
+ *
+ * @note A implementação atual gera um snapshot por merge, não por elemento,
+ *       para reduzir a quantidade de frames.
  */
 void sort_merge(void** vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void* ctx);
 
-#endif
+/** @} */ /* end of sort group */
+
+#endif /* SORT_H */
