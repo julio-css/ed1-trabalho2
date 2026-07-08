@@ -42,7 +42,7 @@ Implementação de um sistema para processamento de formas geométricas (retâng
 ### Compilação
 
 ``` bash
-make
+make ted
 ```
 
 
