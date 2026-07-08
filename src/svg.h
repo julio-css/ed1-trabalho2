@@ -33,6 +33,14 @@ void svg_calcula_dimensoes(Lista* formas, double* largura, double* altura);
 void svg_abre(FILE* arq, double largura, double altura);
 
 /*
+ * svg_abre_com_viewbox
+ * escreve o cabecalho do SVG com viewBox personalizada
+ * pre-condicao: arq != NULL, largura > 0, altura > 0
+ */
+void svg_abre_com_viewbox(FILE* arq, double largura, double altura,
+                          double view_x, double view_y);
+
+/*
  * svg_fecha
  * escreve o fechamento do arquivo SVG
  * pre-condicao: arq != NULL
@@ -49,9 +57,20 @@ void svg_desenha_forma(FILE* arq, Forma* f, double altura);
 /*
  * svg_desenha_lista
  * desenha todas as formas da lista no arquivo SVG
+ * calcula a altura internamente (chama svg_calcula_dimensoes)
  * pre-condicao: arq != NULL, formas != NULL
  */
 void svg_desenha_lista(FILE* arq, Lista* formas);
+
+/*
+ * svg_desenha_lista_altura
+ * desenha todas as formas da lista reutilizando uma altura ja calculada
+ * pelo chamador. Usar esta versao (em vez de svg_desenha_lista) sempre
+ * que a altura ja tiver sido obtida via svg_calcula_dimensoes, para
+ * evitar recalcular a bounding box duas vezes sobre a mesma lista.
+ * pre-condicao: arq != NULL, formas != NULL, altura > 0
+ */
+void svg_desenha_lista_altura(FILE* arq, Lista* formas, double altura);
 
 /*
  * svg_gera_arquivo
