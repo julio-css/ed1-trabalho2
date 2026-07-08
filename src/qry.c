@@ -16,11 +16,13 @@
 #define MAX_PATH 512
 #define MAX_POLIGONOS 10
 
-/* =============================================================
- * TIPOS AUXILIARES INTERNOS
- * ============================================================= */
-
 /*
+ * ============================================================
+ * TIPOS AUXILIARES INTERNOS
+ * ============================================================
+ */
+
+/**
  * RegiaoSel – Define um retângulo de seleção utilizado pelos comandos
  * 'sel' e 'cm' para filtrar elementos com base em coordenadas espaciais.
  */
@@ -29,14 +31,15 @@ typedef struct
     double x, y, w, h;
 } RegiaoSel;
 
-/*
+/**
  * CtxFrames – Contexto passado à função de callback de snapshot durante
  * a ordenação. Armazena informações necessárias para gerar quadros
  * da animação, incluindo o diretório base, contador, árvore de formas,
  * posição de destino, largura do degrau, região de seleção e dimensões
  * da tela.
  *
- * ALTERADO: adicionados os campos fundo_svg e fundo_tam para cache do fundo.
+ * Os campos fundo_svg e fundo_tam foram adicionados para cache do fundo
+ * estático, evitando redesenhos desnecessários em cada frame.
  */
 typedef struct
 {
@@ -44,37 +47,54 @@ typedef struct
     int contador;
     Arvore formas;
     double dest_x, dest_y, dw;
-    RegiaoSel regiao; /* retângulo de seleção para desenho */
+    RegiaoSel regiao; /* Retângulo de seleção para desenho */
     double largura_tela;
     double altura_tela;
-    char *fundo_svg;  /* Buffer de memória com o fundo estático do SVG */
+    char *fundo_svg;  /* Buffer com o fundo estático pré-renderizado */
     size_t fundo_tam; /* Tamanho do buffer do fundo */
 } CtxFrames;
 
-/* Variável estática para armazenar a última região de seleção,
- * utilizada para permitir o desenho do retângulo durante a animação
- * sem modificar a assinatura das funções de callback. */
+/**
+ * ultima_regiao – última região definida por um comando 'sel'.
+ *
+ * É mantida estaticamente para uso em comandos posteriores (find/findrm),
+ * permitindo desenhar o retângulo de seleção durante a animação mesmo
+ * sem um 'sel' explícito antes do 'find'.
+ */
 static RegiaoSel ultima_regiao = {0, 0, 0, 0};
 
-/* =============================================================
+/*
+ * ============================================================
  * FUNÇÕES DE CALLBACK E PREDICADOS
- * ============================================================= */
+ * ============================================================
+ */
 
-/* Insere um elemento visitado em uma lista auxiliar. */
+/**
+ * cb_coleta_lista – insere um elemento visitado em uma lista auxiliar.
+ * Usada para percorrer a árvore e coletar todas as formas.
+ */
 static void cb_coleta_lista(void *elemento, void *aux)
 {
     lista_inserir_fim((Lista *)aux, elemento);
 }
 
-/* Insere um elemento na lista de formas selecionadas. */
+/**
+ * cb_coleta_sel – insere um elemento na lista de formas selecionadas.
+ * Usada pelo comando 'sel' para coletar as formas que satisfazem o predicado.
+ */
 static void cb_coleta_sel(void *elemento, void *aux)
 {
     lista_inserir_fim((Lista *)aux, elemento);
 }
 
-/*
+/**
  * calcula_regiao_arvore – retorna um retângulo que cobre todas as formas da árvore.
+ *
  * Usado quando não há uma região de seleção definida (ultima_regiao vazia).
+ * Percorre todas as formas da árvore e calcula o bounding box,
+ * adicionando uma margem de 2 unidades para não cortar as bordas.
+ *
+ * @return RegiaoSel com as coordenadas do retângulo que engloba todas as formas.
  */
 static RegiaoSel calcula_regiao_arvore(Arvore formas)
 {
@@ -82,48 +102,61 @@ static RegiaoSel calcula_regiao_arvore(Arvore formas)
     Lista *lista = lista_criar();
     emOrdemArvore(formas, cb_coleta_lista, lista);
     int n = lista_tamanho(lista);
-    if (n == 0) {
+    if (n == 0)
+    {
         lista_destruir(lista);
         return reg;
     }
 
     double min_x = 1e9, min_y = 1e9, max_x = -1e9, max_y = -1e9;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         Forma *f = (Forma *)lista_get(lista, i);
         double x = forma_get_x(f), y = forma_get_y(f);
         double x2 = x, y2 = y;
-        switch (forma_get_tipo(f)) {
-            case FORMA_CIRCULO:
-                x2 = x + forma_get_raio(f);
-                y2 = y + forma_get_raio(f);
-                break;
-            case FORMA_RETANGULO:
-                x2 = x + forma_get_largura(f);
-                y2 = y + forma_get_altura(f);
-                break;
-            case FORMA_LINHA:
-                x2 = forma_get_x2(f);
-                y2 = forma_get_y2(f);
-                break;
-            case FORMA_POLIGONO: {
-                int np = forma_get_num_pontos(f);
-                for (int k = 0; k < np; k++) {
-                    double px = forma_get_ponto_x(f, k);
-                    double py = forma_get_ponto_y(f, k);
-                    if (px < min_x) min_x = px;
-                    if (py < min_y) min_y = py;
-                    if (px > max_x) max_x = px;
-                    if (py > max_y) max_y = py;
-                }
-                continue;
+        switch (forma_get_tipo(f))
+        {
+        case FORMA_CIRCULO:
+            x2 = x + forma_get_raio(f);
+            y2 = y + forma_get_raio(f);
+            break;
+        case FORMA_RETANGULO:
+            x2 = x + forma_get_largura(f);
+            y2 = y + forma_get_altura(f);
+            break;
+        case FORMA_LINHA:
+            x2 = forma_get_x2(f);
+            y2 = forma_get_y2(f);
+            break;
+        case FORMA_POLIGONO:
+        {
+            int np = forma_get_num_pontos(f);
+            for (int k = 0; k < np; k++)
+            {
+                double px = forma_get_ponto_x(f, k);
+                double py = forma_get_ponto_y(f, k);
+                if (px < min_x)
+                    min_x = px;
+                if (py < min_y)
+                    min_y = py;
+                if (px > max_x)
+                    max_x = px;
+                if (py > max_y)
+                    max_y = py;
             }
-            default:
-                break;
+            continue;
         }
-        if (x < min_x) min_x = x;
-        if (y < min_y) min_y = y;
-        if (x2 > max_x) max_x = x2;
-        if (y2 > max_y) max_y = y2;
+        default:
+            break;
+        }
+        if (x < min_x)
+            min_x = x;
+        if (y < min_y)
+            min_y = y;
+        if (x2 > max_x)
+            max_x = x2;
+        if (y2 > max_y)
+            max_y = y2;
     }
     lista_destruir(lista);
     reg.x = min_x - 2.0;
@@ -133,10 +166,19 @@ static RegiaoSel calcula_regiao_arvore(Arvore formas)
     return reg;
 }
 
-/*
- * predicado_na_regiao – Verifica se a forma está completamente contida
- * no retângulo especificado. Implementação completa para todos os tipos.
- * ALTERADO: substituída pela versão do original que testa contêiner total.
+/**
+ * predicado_na_regiao – verifica se a forma está completamente contida
+ * no retângulo especificado.
+ *
+ * Implementação completa para todos os tipos de forma:
+ * - Círculo: usa centro e raio
+ * - Retângulo: usa canto inferior esquerdo, largura e altura
+ * - Linha: ambas as extremidades devem estar contidas
+ * - Texto: usa âncora, comprimento e altura fixa (10.0)
+ * - Polígono: todos os vértices devem estar contidos
+ *
+ * Retorna 1 (verdadeiro) se a forma estiver completamente dentro da região,
+ * ou 0 (falso) caso contrário.
  */
 static int predicado_na_regiao(void *elemento, void *ctx)
 {
@@ -199,11 +241,27 @@ static int predicado_na_regiao(void *elemento, void *ctx)
 }
 
 /*
+ * ============================================================
+ * SNAPSHOT (Geração de Frames da Animação)
+ * ============================================================
+ */
+
+/**
  * snapshot_frame – Gera um arquivo SVG numerado para cada passo do
  * algoritmo de ordenação.
  *
- * ALTERADO: utiliza o fundo estático cacheado (c->fundo_svg) quando disponível,
- * melhorando a performance. Mantém a lógica de desenho das formas na fileira.
+ * Esta função é chamada pelos algoritmos de ordenação (através do callback)
+ * para registrar o estado atual do vetor durante a ordenação.
+ *
+ * Otimização crítica: utiliza o fundo estático cacheado (c->fundo_svg)
+ * quando disponível, evitando redesenhos desnecessários de formas não
+ * selecionadas em cada frame.
+ *
+ * @param vetor Vetor de formas sendo ordenado.
+ * @param n     Número de elementos no vetor.
+ * @param i     Primeiro índice sendo comparado/trocado (-1 se N/A).
+ * @param j     Segundo índice sendo comparado/trocado (-1 se N/A).
+ * @param ctx   Contexto (CtxFrames*) com informações do frame.
  */
 static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
 {
@@ -222,7 +280,8 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
 
     /* Desenha o retângulo vermelho pontilhado da seleção */
     Lista *vazia = lista_criar();
-    svg_desenha_selecao(arq, c->regiao.x, c->regiao.y, c->regiao.w, c->regiao.h, vazia, a);
+    svg_desenha_selecao(arq, c->regiao.x, c->regiao.y,
+                        c->regiao.w, c->regiao.h, vazia, a);
     lista_destruir(vazia);
 
     /* --- 1. Desenha o fundo (formas NÃO selecionadas) --- */
@@ -263,6 +322,7 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
     {
         Forma *f = (Forma *)vetor[idx];
 
+        /* Salva coordenadas originais para restaurar depois */
         double ox = forma_get_x(f);
         double oy = forma_get_y(f);
         double ox2 = 0, oy2 = 0;
@@ -274,6 +334,7 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
             oy2 = forma_get_y2(f);
         }
 
+        /* Posiciona temporariamente na fileira de destino */
         forma_set_x(f, pos_x);
         forma_set_y(f, c->dest_y);
         if (e_linha)
@@ -293,6 +354,7 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
                     pos_x + 20.0, c->dest_y + 20.0);
         }
 
+        /* Restaura coordenadas originais */
         forma_set_x(f, ox);
         forma_set_y(f, oy);
         if (e_linha)
@@ -308,12 +370,14 @@ static void snapshot_frame(void **vetor, int n, int i, int j, void *ctx)
     fclose(arq);
 }
 
-/* =============================================================
- * FUNÇÕES AUXILIARES PARA GERAÇÃO DE SVG
- * ============================================================= */
-
 /*
- * qry_svg_de_arvore – Gera um arquivo SVG contendo todas as formas
+ * ============================================================
+ * FUNÇÕES AUXILIARES PARA GERAÇÃO DE SVG
+ * ============================================================
+ */
+
+/**
+ * qry_svg_de_arvore – gera um arquivo SVG contendo todas as formas
  * da árvore, percorrendo-as em ordem simétrica.
  */
 void qry_svg_de_arvore(const char *caminho, Arvore formas)
@@ -324,9 +388,10 @@ void qry_svg_de_arvore(const char *caminho, Arvore formas)
     lista_destruir(temp);
 }
 
-/*
- * svg_de_arvore_com_sel – Gera SVG da árvore com a região de seleção
+/**
+ * svg_de_arvore_com_sel – gera SVG da árvore com a região de seleção
  * pontilhada e um círculo ao redor das âncoras das formas selecionadas.
+ * Usada pelo comando 'sel' para mostrar visualmente quais formas foram selecionadas.
  */
 static void svg_de_arvore_com_sel(const char *caminho, Arvore formas,
                                   double sx, double sy, double sw, double sh,
@@ -350,9 +415,10 @@ static void svg_de_arvore_com_sel(const char *caminho, Arvore formas,
     lista_destruir(todas);
 }
 
-/*
- * svg_de_arvore_com_x – Gera SVG da árvore com um "X" vermelho sobre
- * as âncoras das formas que serão removidas (comando dels).
+/**
+ * svg_de_arvore_com_x – gera SVG da árvore com um "X" vermelho sobre
+ * as âncoras das formas que serão removidas (comando 'dels').
+ * Mostra visualmente quais formas serão removidas antes da remoção efetiva.
  */
 static void svg_de_arvore_com_x(const char *caminho, Arvore formas,
                                 Lista *selecionadas)
@@ -380,11 +446,12 @@ static void svg_de_arvore_com_x(const char *caminho, Arvore formas,
     lista_destruir(todas);
 }
 
-/*
- * svg_de_arvore_com_quadrados – Gera SVG final do comando find,
- * destacando com um quadrado vermelho a âncora dos k menores elementos.
- * ALTERADO: agora recebe dest_x, dest_y, dw para desenhar o retângulo
- * tracejado laranja da fileira e utiliza viewBox para incluir toda a área.
+/**
+ * svg_de_arvore_com_quadrados – gera SVG final do comando 'find'.
+ *
+ * Destaca com um quadrado vermelho a âncora dos k menores elementos
+ * e desenha um retângulo tracejado laranja ao redor da fileira de destino.
+ * Utiliza viewBox para incluir toda a área (formas originais + fileira).
  */
 static void svg_de_arvore_com_quadrados(const char *caminho, Arvore formas,
                                         void **vetor, int k,
@@ -468,7 +535,7 @@ static void svg_de_arvore_com_quadrados(const char *caminho, Arvore formas,
     if (k > 0)
     {
         double largura_fileira = k * dw;
-        double altura_fileira = 60.0; /* altura arbitrária para o retângulo */
+        double altura_fileira = 60.0;
         double fx = dest_x, fy = dest_y - 30.0;
         if (fx < min_x)
             min_x = fx;
@@ -509,12 +576,20 @@ static void svg_de_arvore_com_quadrados(const char *caminho, Arvore formas,
     lista_destruir(todas);
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * FUNÇÃO AUXILIAR PARA MOVIMENTAÇÃO DE FORMAS
- * ============================================================= */
+ * ============================================================
+ */
 
-/* Aplica um deslocamento (dx, dy) a todos os pontos de uma forma,
- * incluindo linhas e polígonos. */
+/**
+ * move_forma – aplica um deslocamento (dx, dy) a todos os pontos de uma forma.
+ *
+ * Para linhas, move ambas as extremidades.
+ * Para polígonos, move todos os vértices.
+ * Para outros tipos, move apenas a âncora.
+ * Esta função é usada pelos comandos 'mcs' e 'cm'.
+ */
 static void move_forma(Forma *f, double dx, double dy)
 {
     forma_set_x(f, forma_get_x(f) + dx);
@@ -535,12 +610,18 @@ static void move_forma(Forma *f, double dx, double dy)
     }
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * IMPLEMENTAÇÃO DOS COMANDOS DA QRY
- * ============================================================= */
+ * ============================================================
+ */
 
-/* Comando 'inp': insere um ponto (âncora) em um polígono identificado
- * pelo índice p. Utiliza a forma de id i como referência para a posição. */
+/**
+ * cmd_inp – insere um ponto (âncora) em um polígono.
+ *
+ * Utiliza a forma de id i como referência para a posição.
+ * Para linhas, usa a extremidade mais próxima da origem (menor x, depois menor y).
+ */
 static void cmd_inp(FILE *arq_qry, Arvore formas,
                     Poligono **poligonos, FILE *arq_txt)
 {
@@ -568,7 +649,9 @@ static void cmd_inp(FILE *arq_qry, Arvore formas,
         fprintf(arq_txt, "[*] inp %d %d -> (%.2f, %.2f)\n", p, i, ax, ay);
 }
 
-/* Comando 'rmp': remove o último ponto inserido em um polígono. */
+/**
+ * cmd_rmp – remove o último ponto inserido em um polígono (FIFO).
+ */
 static void cmd_rmp(FILE *arq_qry, Poligono **poligonos, FILE *arq_txt)
 {
     int p;
@@ -582,7 +665,9 @@ static void cmd_rmp(FILE *arq_qry, Poligono **poligonos, FILE *arq_txt)
             fprintf(arq_txt, "[*] rmp %d: removido pt de id %d\n", p, oid);
 }
 
-/* Comando 'clp': esvazia completamente um polígono. */
+/**
+ * cmd_clp – esvazia completamente um polígono.
+ */
 static void cmd_clp(FILE *arq_qry, Poligono **poligonos, FILE *arq_txt)
 {
     int p;
@@ -594,8 +679,11 @@ static void cmd_clp(FILE *arq_qry, Poligono **poligonos, FILE *arq_txt)
         fprintf(arq_txt, "[*] clp %d: poligono esvaziado\n", p);
 }
 
-/* Comando 'pol': gera uma nova forma polígono a partir dos pontos
- * armazenados em um polígono auxiliar e a insere na árvore. */
+/**
+ * cmd_pol – gera uma nova forma polígono a partir dos pontos
+ * armazenados em um polígono auxiliar e a insere na árvore.
+ * Requer pelo menos 3 pontos para formar um polígono válido.
+ */
 static void cmd_pol(FILE *arq_qry, Arvore formas,
                     Poligono **poligonos, FILE *arq_txt)
 {
@@ -624,12 +712,12 @@ static void cmd_pol(FILE *arq_qry, Arvore formas,
         fprintf(arq_txt, "[*] pol %d: gerado com id %d\n", p, id_pol);
 }
 
-/*
- * Comando 'sel': seleciona todas as formas cuja âncora (ou vértice,
- * no caso de polígonos) se encontra dentro da região retangular
- * especificada. A região é armazenada globalmente para uso em comandos
- * posteriores (especialmente para animação). Gera SVG intermediário
- * se solicitado.
+/**
+ * cmd_sel – seleciona todas as formas completamente contidas na região.
+ *
+ * A região é armazenada globalmente (ultima_regiao) para uso em comandos
+ * posteriores (find/findrm). Gera SVG intermediário se solicitado.
+ * Desconsidera seleções anteriores.
  */
 static void cmd_sel(FILE *arq_qry, Arvore formas,
                     Lista **selecionadas,
@@ -666,8 +754,12 @@ static void cmd_sel(FILE *arq_qry, Arvore formas,
                               reg.x, reg.y, reg.w, reg.h, *selecionadas);
 }
 
-/* Comando 'dels': remove da árvore todas as formas atualmente
- * selecionadas. Gera SVG com "X" sobre elas antes da remoção. */
+/**
+ * cmd_dels – remove da árvore todas as formas atualmente selecionadas.
+ *
+ * Gera SVG com "X" sobre elas antes da remoção, para visualização.
+ * A lista de selecionados é esvaziada após a remoção.
+ */
 static void cmd_dels(Arvore formas, Lista **selecionadas,
                      FILE *arq_txt, const char *base_svg)
 {
@@ -687,8 +779,12 @@ static void cmd_dels(Arvore formas, Lista **selecionadas,
     *selecionadas = lista_criar();
 }
 
-/* Comando 'mcs': translada as formas selecionadas pelo vetor (dx, dy),
- * altera suas cores e gera um frame SVG da árvore resultante. */
+/**
+ * cmd_mcs – translada as formas selecionadas e altera suas cores.
+ *
+ * Move pelo vetor (dx, dy) e altera a cor da borda e preenchimento.
+ * Gera um frame SVG da árvore resultante a cada chamada.
+ */
 static void cmd_mcs(FILE *arq_qry, Arvore formas,
                     Lista *selecionadas, FILE *arq_txt, const char *base_svg)
 {
@@ -728,7 +824,9 @@ static void cmd_mcs(FILE *arq_qry, Arvore formas,
     }
 }
 
-/* Comando 'mc': altera as cores das formas selecionadas sem movê-las. */
+/**
+ * cmd_mc – altera as cores das formas selecionadas sem movê-las.
+ */
 static void cmd_mc(FILE *arq_qry, Lista *selecionadas, FILE *arq_txt)
 {
     char corb[32], corp[32];
@@ -745,9 +843,13 @@ static void cmd_mc(FILE *arq_qry, Lista *selecionadas, FILE *arq_txt)
         fprintf(arq_txt, "[*] mc: cores alteradas em %d formas\n", n);
 }
 
-/* Comando 'cm': clona as formas contidas na região especificada,
- * translada os clones pelo vetor (dx, dy) e os insere na árvore,
- * tornando-os a nova lista de selecionados. */
+/**
+ * cmd_cm – clona as formas contidas na região especificada.
+ *
+ * Translada os clones pelo vetor (dx, dy) e os insere na árvore.
+ * Os clones tornam-se a nova lista de selecionados.
+ * Desconsidera seleções anteriores.
+ */
 static void cmd_cm(FILE *arq_qry, Arvore formas,
                    Lista **selecionadas, FILE *arq_txt)
 {
@@ -779,15 +881,19 @@ static void cmd_cm(FILE *arq_qry, Arvore formas,
     lista_destruir(originais);
 }
 
-/*
- * Comando 'find' e 'findrm': ordena as formas selecionadas de acordo
- * com o algoritmo e critério especificados, reposiciona os k primeiros
- * na fileira de destino e, opcionalmente, remove os demais.
- * Gera animação (frames SVG) se um nome base for fornecido.
- * Parâmetro eh_findrm: 0 para 'find', 1 para 'findrm'.
+/**
+ * cmd_find / cmd_findrm – ordena as formas selecionadas.
  *
- * ALTERADO: adicionados ajuste de dw, pré‑cálculo do fundo estático,
- * ajuste de dimensões da tela e geração do snapshot inicial.
+ * Ordena de acordo com o algoritmo (alg) e critério (crit) especificados.
+ * Reposiciona os k primeiros na fileira de destino e, opcionalmente,
+ * remove os demais (findrm).
+ *
+ * Gera animação (frames SVG) se um nome base for fornecido.
+ *
+ * Otimizações implementadas:
+ * - Cache do fundo estático em memória para evitar redesenhos
+ * - Ajuste automático de dw (mínimo 10.0)
+ * - Uso de viewBox no SVG final para incluir toda a área
  */
 static void cmd_find(FILE *arq_qry, Arvore formas,
                      Lista **selecionadas,
@@ -800,7 +906,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     fscanf(arq_qry, "%d %7s %3s %lf %lf %lf",
            &k, alg, crit, &dest_x, &dest_y, &dw);
 
-    /* Ajuste de espaçamento mínimo */
+    /* Ajuste de espaçamento mínimo para evitar sobreposição visual */
     if (dw < 10.0)
     {
         dw = 15.0;
@@ -812,10 +918,12 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     if (n_sel == 0)
         return;
 
+    /* Cria vetor com as formas selecionadas */
     void **vetor = (void **)malloc(n_sel * sizeof(void *));
     for (int i = 0; i < n_sel; i++)
         vetor[i] = lista_get(*selecionadas, i);
 
+    /* Seleciona a função de comparação conforme o critério */
     FuncaoComparacaoSort cmp = NULL;
     if (strcmp(crit, "d") == 0)
         cmp = (FuncaoComparacaoSort)geo_comparar;
@@ -833,7 +941,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         return;
     }
 
-    /* Configura o contexto para geração de frames, se requisitado. */
+    /* Configura o contexto para geração de frames */
     CtxFrames ctx_frames;
     ctx_frames.largura_tela = 0;
     ctx_frames.altura_tela = 0;
@@ -842,6 +950,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
 
     if (base_svg)
     {
+        /* Prepara o nome base para os arquivos de frame */
         strncpy(ctx_frames.base, base_svg, MAX_PATH * 4 - 1);
         ctx_frames.base[MAX_PATH * 4 - 1] = '\0';
         char *ponto = strrchr(ctx_frames.base, '.');
@@ -853,7 +962,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         emOrdemArvore(formas, cb_coleta_lista, todas);
         svg_calcula_dimensoes(todas, &ctx_frames.largura_tela, &ctx_frames.altura_tela);
 
-        /* BUGFIX: ajusta dimensões para incluir a fileira de destino */
+        /* Ajusta dimensões para incluir a fileira de destino */
         {
             double maior_largura_forma = 0.0, maior_altura_forma = 0.0;
             for (int idx = 0; idx < n_sel; idx++)
@@ -873,7 +982,11 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
                 ctx_frames.altura_tela = fim_y;
         }
 
-        /* Gera o fundo estático (formas não selecionadas) em memória */
+        /*
+         * Gera o fundo estático (formas NÃO selecionadas) em memória.
+         * Este buffer é injetado em cada frame, evitando redesenhos.
+         * Otimização crítica: a renderização do fundo é O(1) por frame.
+         */
         FILE *mem = open_memstream(&ctx_frames.fundo_svg, &ctx_frames.fundo_tam);
         if (mem)
         {
@@ -900,10 +1013,16 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         lista_destruir(todas);
     }
 
-    /* Se não houver região de seleção definida, usa a região de toda a árvore */
-    if (ultima_regiao.w == 0.0 && ultima_regiao.h == 0.0) {
+    /*
+     * Se não houver região de seleção definida, usa a região de toda a árvore.
+     * Isso garante que o retângulo vermelho apareça em todos os frames.
+     */
+    if (ultima_regiao.w == 0.0 && ultima_regiao.h == 0.0)
+    {
         ctx_frames.regiao = calcula_regiao_arvore(formas);
-    } else {
+    }
+    else
+    {
         ctx_frames.regiao = ultima_regiao;
     }
 
@@ -917,7 +1036,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     if (snap)
         snap(vetor, n_sel, -1, -1, &ctx_frames);
 
-    /* Executa o algoritmo de ordenação escolhido. */
+    /* Executa o algoritmo de ordenação escolhido */
     if (strcmp(alg, "bs") == 0)
         sort_bubble(vetor, n_sel, cmp, snap, &ctx_frames);
     else if (strcmp(alg, "ss") == 0)
@@ -931,15 +1050,14 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     else if (strcmp(alg, "ms") == 0)
         sort_merge(vetor, n_sel, cmp, snap, &ctx_frames);
 
-    /* Libera o buffer do fundo, se alocado */
+    /* Libera o buffer do fundo */
     if (ctx_frames.fundo_svg)
         free(ctx_frames.fundo_svg);
 
     if (k > n_sel)
         k = n_sel;
 
-    /* Registra no arquivo de texto os k primeiros elementos com seus
-     * atributos relevantes. */
+    /* Registra no arquivo de texto os k primeiros elementos */
     if (arq_txt)
     {
         fprintf(arq_txt, "[*] %s %d %s %s %.1f %.1f %.1f\n",
@@ -965,7 +1083,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         }
     }
 
-    /* Reposiciona os k primeiros na fileira de destino. */
+    /* Reposiciona os k primeiros na fileira de destino */
     double pos_x = dest_x;
     for (int i = 0; i < k; i++)
     {
@@ -984,7 +1102,7 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         pos_x += dw;
     }
 
-    /* Se for 'findrm', remove os elementos restantes (índices > k). */
+    /* Se for 'findrm', remove os elementos restantes */
     if (eh_findrm)
     {
         for (int i = k; i < n_sel; i++)
@@ -995,12 +1113,11 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
         }
     }
 
-    /* Gera SVG final com quadrados vermelhos sobre os k menores e retângulo tracejado */
+    /* Gera SVG final com quadrados vermelhos e retângulo tracejado */
     if (base_svg)
         svg_de_arvore_com_quadrados(base_svg, formas, vetor, k, dest_x, dest_y, dw);
 
-    /* Atualiza a lista de selecionados: se for 'find', mantém os k
-     * primeiros; se for 'findrm', esvazia. */
+    /* Atualiza a lista de selecionados */
     lista_destruir(*selecionadas);
     *selecionadas = lista_criar();
 
@@ -1012,15 +1129,24 @@ static void cmd_find(FILE *arq_qry, Arvore formas,
     free(vetor);
 }
 
-/* =============================================================
- * PROCESSADOR PRINCIPAL DA QRY
- * ============================================================= */
-
 /*
- * qry_processa_arquivo – Lê o arquivo de consultas (.qry) e executa
- * os comandos na ordem em que aparecem. Mantém uma lista de formas
- * selecionadas entre os comandos. Gera saídas de texto e SVG conforme
- * especificado.
+ * ============================================================
+ * PROCESSADOR PRINCIPAL DA QRY
+ * ============================================================
+ */
+
+/**
+ * qry_processa_arquivo – lê o arquivo de consultas (.qry) e executa
+ * os comandos na ordem em que aparecem.
+ *
+ * Mantém uma lista de formas selecionadas entre os comandos.
+ * Gera saídas de texto e SVG conforme especificado.
+ *
+ * @param arq_qry   Arquivo .qry aberto para leitura.
+ * @param formas    Árvore de formas.
+ * @param poligonos Array de polígonos (tamanho MAX_POLIGONOS).
+ * @param arq_txt   Arquivo de saída de texto (.txt).
+ * @param base_svg  Caminho base para SVGs intermediários.
  */
 void qry_processa_arquivo(FILE *arq_qry, Arvore formas,
                           Poligono **poligonos, FILE *arq_txt,

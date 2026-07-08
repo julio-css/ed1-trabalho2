@@ -13,7 +13,20 @@
 #include "poligono.h"
 
 /*
- * geo_area — calcula a area conforme as regras do trabalho
+ * ============================================================
+ * CÁLCULOS GEOMÉTRICOS
+ * ============================================================
+ */
+
+/**
+ * geo_area – calcula a área da forma conforme especificação do trabalho.
+ *
+ * Regras:
+ * - Círculo   : π * r²
+ * - Retângulo : w * h
+ * - Linha     : 1.5 * comprimento
+ * - Texto     : 10.0 * número de caracteres
+ * - Polígono  : 0 (não definido na especificação)
  */
 double geo_area(Forma *f)
 {
@@ -22,7 +35,7 @@ double geo_area(Forma *f)
     case FORMA_CIRCULO:
     {
         double r = forma_get_raio(f);
-        return 3.14159265358979 * r * r;
+        return 3.141592653589793 * r * r;
     }
     case FORMA_RETANGULO:
         return forma_get_largura(f) * forma_get_altura(f);
@@ -39,6 +52,16 @@ double geo_area(Forma *f)
     }
 }
 
+/**
+ * geo_largura – calcula a largura lógica da forma.
+ *
+ * Regras:
+ * - Círculo   : 2 * r
+ * - Retângulo : w
+ * - Linha     : |x2 - x1|
+ * - Texto     : 1.0 * número de caracteres
+ * - Polígono  : 0
+ */
 double geo_largura(Forma *f)
 {
     switch (forma_get_tipo(f))
@@ -56,6 +79,16 @@ double geo_largura(Forma *f)
     }
 }
 
+/**
+ * geo_altura – calcula a altura lógica da forma.
+ *
+ * Regras:
+ * - Círculo   : 2 * r
+ * - Retângulo : h
+ * - Linha     : 1.5 (fixo, conforme especificação)
+ * - Texto     : 10.0 (fixo, conforme especificação)
+ * - Polígono  : 0
+ */
 double geo_altura(Forma *f)
 {
     switch (forma_get_tipo(f))
@@ -74,39 +107,61 @@ double geo_altura(Forma *f)
 }
 
 /*
- * geo_comparar – chave padrão: y, x, area, e por fim ID para unicidade.
- * A inclusão do ID garante que elementos com chaves idênticas sejam
- * distinguíveis, permitindo remoção correta.
+ * ============================================================
+ * COMPARADORES PARA ORDENAÇÃO
+ * ============================================================
+ */
+
+/**
+ * geo_comparar – comparador padrão (ordem default).
+ *
+ * Chave primária: y crescente.
+ * Chave secundária: x crescente.
+ * Chave terciária: área crescente.
+ * Desempate final: ID (garante unicidade).
+ *
+ * A inclusão do ID como último critério é importante para
+ * distinguir elementos com todas as chaves idênticas,
+ * permitindo operações corretas de remoção na árvore.
+ *
+ * Usa tolerância de 1e-9 para comparações de ponto flutuante,
+ * evitando problemas com precisão numérica.
  */
 int geo_comparar(void *e1, void *e2)
 {
     Forma *f1 = (Forma *)e1;
     Forma *f2 = (Forma *)e2;
 
+    /* Primeiro critério: y */
     double dy = forma_get_y(f1) - forma_get_y(f2);
     if (dy < -1e-9)
         return -1;
     if (dy > 1e-9)
         return 1;
 
+    /* Segundo critério: x */
     double dx = forma_get_x(f1) - forma_get_x(f2);
     if (dx < -1e-9)
         return -1;
     if (dx > 1e-9)
         return 1;
 
+    /* Terceiro critério: área */
     double da = geo_area(f1) - geo_area(f2);
     if (da < -1e-9)
         return -1;
     if (da > 1e-9)
         return 1;
 
-    /* Desempate final por ID */
-    int id1 = forma_get_id(f1);
-    int id2 = forma_get_id(f2);
-    return id1 - id2;
+    /* Desempate final por ID (garante unicidade) */
+    return forma_get_id(f1) - forma_get_id(f2);
 }
 
+/**
+ * geo_comparar_area – comparador para ordenação por área crescente.
+ *
+ * Em caso de empate, usa o comparador padrão como desempate.
+ */
 int geo_comparar_area(void *e1, void *e2)
 {
     Forma *f1 = (Forma *)e1;
@@ -121,6 +176,9 @@ int geo_comparar_area(void *e1, void *e2)
     return geo_comparar(e1, e2);
 }
 
+/**
+ * geo_comparar_largura – comparador para ordenação por largura crescente.
+ */
 int geo_comparar_largura(void *e1, void *e2)
 {
     Forma *f1 = (Forma *)e1;
@@ -135,6 +193,9 @@ int geo_comparar_largura(void *e1, void *e2)
     return geo_comparar(e1, e2);
 }
 
+/**
+ * geo_comparar_altura – comparador para ordenação por altura crescente.
+ */
 int geo_comparar_altura(void *e1, void *e2)
 {
     Forma *f1 = (Forma *)e1;
@@ -149,6 +210,14 @@ int geo_comparar_altura(void *e1, void *e2)
     return geo_comparar(e1, e2);
 }
 
+/**
+ * geo_comparar_cor – comparador para ordenação por cor.
+ *
+ * Para linhas, usa a cor da borda (conforme especificação).
+ * Para outras formas, usa a cor de preenchimento.
+ * Ordenação alfabética (strcmp).
+ * Desempate pelo comparador padrão.
+ */
 int geo_comparar_cor(void *e1, void *e2)
 {
     Forma *f1 = (Forma *)e1;
@@ -168,11 +237,45 @@ int geo_comparar_cor(void *e1, void *e2)
     return geo_comparar(e1, e2);
 }
 
+/*
+ * ============================================================
+ * UTILITÁRIOS
+ * ============================================================
+ */
+
+/**
+ * geo_get_id – extrai o ID de uma forma (callback para busca por ID).
+ *
+ * Esta função é usada como callback em buscarPorIdArvore,
+ * permitindo que a árvore busque elementos por ID sem conhecer
+ * a estrutura específica de Forma.
+ */
 int geo_get_id(void *elemento)
 {
     return forma_get_id((Forma *)elemento);
 }
 
+/*
+ * ============================================================
+ * LEITURA DO ARQUIVO .geo
+ * ============================================================
+ */
+
+/**
+ * geo_processa_arquivo – lê o arquivo .geo e insere formas na árvore.
+ *
+ * Suporta os comandos do formato .geo:
+ * - c   : círculo
+ * - r   : retângulo
+ * - l   : linha
+ * - t   : texto
+ * - ts  : estilo de texto (ignorado, mas consumido)
+ *
+ * Linhas começando com '#' são ignoradas (comentários).
+ *
+ * @param arq_geo Arquivo .geo aberto para leitura.
+ * @param formas  Árvore onde as formas serão inseridas.
+ */
 void geo_processa_arquivo(FILE *arq_geo, Arvore formas)
 {
     char cmd[4];
@@ -181,6 +284,7 @@ void geo_processa_arquivo(FILE *arq_geo, Arvore formas)
     {
         if (strcmp(cmd, "c") == 0)
         {
+            /* Círculo: c id x y r cor_borda cor_preench */
             int id;
             double x, y, r;
             char corb[32], corp[32];
@@ -192,6 +296,7 @@ void geo_processa_arquivo(FILE *arq_geo, Arvore formas)
         }
         else if (strcmp(cmd, "r") == 0)
         {
+            /* Retângulo: r id x y w h cor_borda cor_preench */
             int id;
             double x, y, w, h;
             char corb[32], corp[32];
@@ -203,6 +308,7 @@ void geo_processa_arquivo(FILE *arq_geo, Arvore formas)
         }
         else if (strcmp(cmd, "l") == 0)
         {
+            /* Linha: l id x1 y1 x2 y2 cor */
             int id;
             double x1, y1, x2, y2;
             char cor[32];
@@ -214,6 +320,7 @@ void geo_processa_arquivo(FILE *arq_geo, Arvore formas)
         }
         else if (strcmp(cmd, "t") == 0)
         {
+            /* Texto: t id x y cor_borda cor_preench ancora texto */
             int id;
             double x, y;
             char corb[32], corp[32];
@@ -230,6 +337,8 @@ void geo_processa_arquivo(FILE *arq_geo, Arvore formas)
         }
         else if (strcmp(cmd, "ts") == 0)
         {
+            /* Estilo de texto: ts familia peso tamanho
+             * Ignorado, apenas consumimos os parâmetros */
             char familia[32], peso[32], tamanho[32];
             fscanf(arq_geo, "%31s %31s %31s", familia, peso, tamanho);
         }

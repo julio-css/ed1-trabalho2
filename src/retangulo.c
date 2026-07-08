@@ -1,27 +1,77 @@
 #include "retangulo.h"
 #include "forma.h"
 
-/* delega criacao para forma.c */
-Forma* retangulo_cria(int id, double x, double y, double w, double h,
-                      char* cor_borda, char* cor_preench) {
+/*
+ * ============================================================
+ * CONSTRUTOR
+ * ============================================================
+ */
+
+/**
+ * retangulo_cria – delega a criação para forma_cria_retangulo.
+ *
+ * A criação efetiva e a alocação de memória são delegadas à função
+ * genérica forma_cria_retangulo, centralizando a lógica de criação
+ * no módulo forma.c.
+ */
+Forma *retangulo_cria(int id, double x, double y, double w, double h,
+                      char *cor_borda, char *cor_preench)
+{
     return forma_cria_retangulo(id, x, y, w, h, cor_borda, cor_preench);
 }
 
-/* acessa largura e altura via getters de forma */
-double retangulo_get_largura(Forma* f) { return forma_get_largura(f); }
-double retangulo_get_altura(Forma* f)  { return forma_get_altura(f); }
+/*
+ * ============================================================
+ * GETTERS
+ * ============================================================
+ */
 
-/* area = largura * altura */
-double retangulo_get_area(Forma* f) {
-    return forma_get_largura(f) * forma_get_altura(f);
+/**
+ * retangulo_get_largura – obtém a largura do retângulo.
+ *
+ * O acesso aos dados específicos é feito através dos getters
+ * da struct genérica Forma, mantendo o encapsulamento.
+ */
+double retangulo_get_largura(Forma *f)
+{
+    return forma_get_largura(f);
+}
+
+/**
+ * retangulo_get_altura – obtém a altura do retângulo.
+ */
+double retangulo_get_altura(Forma *f)
+{
+    return forma_get_altura(f);
 }
 
 /*
- * verifica se (px,py) esta dentro do retangulo
- * ancora e o canto inferior esquerdo (x,y)
- * retangulo ocupa de x ate x+w e de y ate y+h
+ * ============================================================
+ * CÁLCULOS GEOMÉTRICOS
+ * ============================================================
  */
-int retangulo_contem_ponto(Forma* f, double px, double py) {
+
+/**
+ * retangulo_get_area – calcula a área do retângulo.
+ *
+ * Área = largura * altura.
+ * A âncora do retângulo é o canto inferior esquerdo (x, y).
+ */
+double retangulo_get_area(Forma *f)
+{
+    return forma_get_largura(f) * forma_get_altura(f);
+}
+
+/**
+ * retangulo_contem_ponto – verifica se um ponto está dentro do retângulo.
+ *
+ * A âncora é o canto inferior esquerdo (x, y).
+ * O retângulo ocupa a região de x até x+w e de y até y+h.
+ *
+ * @return 1 (verdadeiro) se o ponto está dentro, 0 (falso) caso contrário.
+ */
+int retangulo_contem_ponto(Forma *f, double px, double py)
+{
     double x = forma_get_x(f);
     double y = forma_get_y(f);
     double w = forma_get_largura(f);

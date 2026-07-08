@@ -2,10 +2,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* =============================================================
+/*
+ * ============================================================
  * BUBBLE SORT
- * Snapshot a cada troca – já é razoável.
- * ============================================================= */
+ * ============================================================
+ */
+
+/**
+ * sort_bubble – implementação do Bubble Sort com snapshots.
+ *
+ * A cada troca, chama snapshot(vetor, n, j, j+1, ctx) para registrar
+ * o estado atual do vetor. O número de snapshots é proporcional ao
+ * número de trocas realizadas.
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ */
 void sort_bubble(void **vetor, int n,
                  FuncaoComparacaoSort cmp,
                  FuncaoSnapshot snapshot, void *ctx)
@@ -30,10 +45,24 @@ void sort_bubble(void **vetor, int n,
     }
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * SELECTION SORT
- * Snapshot a cada seleção (quando há troca) – aceitável.
- * ============================================================= */
+ * ============================================================
+ */
+
+/**
+ * sort_selection – implementação do Selection Sort com snapshots.
+ *
+ * A cada seleção do mínimo e troca, chama snapshot(vetor, n, i, min_idx, ctx).
+ * O número de snapshots é igual ao número de trocas realizadas.
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ */
 void sort_selection(void **vetor, int n,
                     FuncaoComparacaoSort cmp,
                     FuncaoSnapshot snapshot, void *ctx)
@@ -57,11 +86,25 @@ void sort_selection(void **vetor, int n,
     }
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * INSERTION SORT
- * Original: snapshot a cada deslocamento.
- * Otimizado: snapshot APÓS inserir a chave (um por iteração).
- * ============================================================= */
+ * ============================================================
+ */
+
+/**
+ * sort_insertion – implementação do Insertion Sort com snapshots.
+ *
+ * Otimização: snapshot apenas APÓS inserir a chave (um por iteração),
+ * em vez de a cada deslocamento. Isso reduz drasticamente o número
+ * de frames sem perder a essência visual do algoritmo.
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ */
 void sort_insertion(void **vetor, int n,
                     FuncaoComparacaoSort cmp,
                     FuncaoSnapshot snapshot, void *ctx)
@@ -82,11 +125,25 @@ void sort_insertion(void **vetor, int n,
     }
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * SHELL SORT
- * Original: snapshot a cada deslocamento.
- * Otimizado: snapshot após cada inserção (um por iteração do gap).
- * ============================================================= */
+ * ============================================================
+ */
+
+/**
+ * sort_shell – implementação do Shell Sort com snapshots.
+ *
+ * Usa a sequência de gaps de Knuth (1, 4, 13, 40, ...).
+ * Otimização: snapshot após cada inserção (um por iteração do gap),
+ * em vez de a cada deslocamento.
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ */
 void sort_shell(void **vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void *ctx)
@@ -115,10 +172,18 @@ void sort_shell(void **vetor, int n,
     }
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * QUICK SORT
- * Snapshot a cada troca na partição – já é razoável.
- * ============================================================= */
+ * ============================================================
+ */
+
+/**
+ * particiona – função auxiliar do Quick Sort.
+ *
+ * Usa o último elemento como pivô. A cada troca durante o
+ * particionamento, chama snapshot(vetor, n, i, j, ctx).
+ */
 static int particiona(void **vetor, int lo, int hi, int n,
                       FuncaoComparacaoSort cmp,
                       FuncaoSnapshot snapshot, void *ctx)
@@ -146,6 +211,9 @@ static int particiona(void **vetor, int lo, int hi, int n,
     return i + 1;
 }
 
+/**
+ * quick_recursivo – função recursiva do Quick Sort.
+ */
 static void quick_recursivo(void **vetor, int lo, int hi, int n,
                             FuncaoComparacaoSort cmp,
                             FuncaoSnapshot snapshot, void *ctx)
@@ -158,6 +226,18 @@ static void quick_recursivo(void **vetor, int lo, int hi, int n,
     }
 }
 
+/**
+ * sort_quick – implementação do Quick Sort com snapshots.
+ *
+ * A cada troca durante o particionamento, chama snapshot(vetor, n, i, j, ctx).
+ * O número de snapshots é proporcional ao número de trocas.
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ */
 void sort_quick(void **vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void *ctx)
@@ -167,11 +247,28 @@ void sort_quick(void **vetor, int n,
     quick_recursivo(vetor, 0, n - 1, n, cmp, snapshot, ctx);
 }
 
-/* =============================================================
+/*
+ * ============================================================
  * MERGE SORT
- * OTIMIZAÇÃO CRÍTICA: snapshot UMA VEZ por intercalação (merge),
- * e não para cada elemento copiado.
- * ============================================================= */
+ * ============================================================
+ */
+
+/**
+ * merge – intercala dois subvetores ordenados.
+ *
+ * OTIMIZAÇÃO CRÍTICA: snapshot apenas UMA VEZ por intercalação,
+ * e não para cada elemento copiado. Isso reduz o número de frames
+ * de O(N·log N) para O(N), mantendo a animação compreensível.
+ *
+ * @param vetor Vetor contendo os subvetores a intercalar.
+ * @param lo    Índice inicial do primeiro subvetor.
+ * @param mid   Índice final do primeiro subvetor.
+ * @param hi    Índice final do segundo subvetor.
+ * @param n     Tamanho total do vetor.
+ * @param cmp   Função de comparação.
+ * @param snapshot Callback para gerar frames.
+ * @param ctx   Contexto passado para snapshot.
+ */
 static void merge(void **vetor, int lo, int mid, int hi, int n,
                   FuncaoComparacaoSort cmp,
                   FuncaoSnapshot snapshot, void *ctx)
@@ -205,6 +302,9 @@ static void merge(void **vetor, int lo, int mid, int hi, int n,
     free(tmp);
 }
 
+/**
+ * merge_recursivo – função recursiva do Merge Sort.
+ */
 static void merge_recursivo(void **vetor, int lo, int hi, int n,
                             FuncaoComparacaoSort cmp,
                             FuncaoSnapshot snapshot, void *ctx)
@@ -218,6 +318,15 @@ static void merge_recursivo(void **vetor, int lo, int hi, int n,
     }
 }
 
+/**
+ * sort_merge – implementação do Merge Sort com snapshots.
+ *
+ * @param vetor    Vetor de ponteiros a ser ordenado.
+ * @param n        Número de elementos.
+ * @param cmp      Função de comparação.
+ * @param snapshot Callback para gerar frames (pode ser NULL).
+ * @param ctx      Contexto passado para snapshot.
+ */
 void sort_merge(void **vetor, int n,
                 FuncaoComparacaoSort cmp,
                 FuncaoSnapshot snapshot, void *ctx)
